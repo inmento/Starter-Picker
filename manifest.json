@@ -1,0 +1,12 @@
+{
+  "id": "starter_picker",
+  "name": "Starter Picker",
+  "version": "0.0.1",
+  "entry": "main.lua",
+  "api": 2,
+  "category": "GAMEPLAY",
+  "profile": "content",
+  "games": ["gen1"],
+  "affects_link": false,
+  "description": "Edit the Charmander, Bulbasaur, and Squirtle Oak’s Lab ball species before or after starter selection while retaining the rival’s native ball-position counter-pick."
+}
