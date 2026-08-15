@@ -1,5 +1,7 @@
 # Starter Picker
 
+> **AI assisted; not AI created.**
+
 Starter Picker supports the three-ball Oak’s Lab sequence in Gen 1 and the three-ball Elm’s Lab sequence in Gold. The mod options provide three independent, named Pokémon selectors for the active generation. **Gold support is declared but has not been tested in a player game.**
 
 | Option | Original Oak’s Lab ball | Native rival counter-pick |
