@@ -7,32 +7,42 @@
 -- choosing right gives the rival the configured left-ball Pokémon.
 
 return function(mod)
-  local SLOTS = {
+  local function isGen2(game)
+    game = game or mod.game
+    return game and game.data and game.data.gen2Maps ~= nil
+  end
+
+  local GEN1_SLOTS = {
     LEFT = {
       option = "charmander_ball", default = "CHARMANDER",
       ballText = "TEXT_OAKSLAB_CHARMANDER_POKE_BALL",
       ballObject = "OAKSLAB_CHARMANDER_POKE_BALL",
-      choseFlag = "EVENT_CHOSE_CHARMANDER",
-      rivalSlot = "MIDDLE",
+      choseFlag = "EVENT_CHOSE_CHARMANDER", rivalSlot = "MIDDLE",
       rivalBallObject = "OAKSLAB_SQUIRTLE_POKE_BALL",
     },
     MIDDLE = {
       option = "squirtle_ball", default = "SQUIRTLE",
       ballText = "TEXT_OAKSLAB_SQUIRTLE_POKE_BALL",
       ballObject = "OAKSLAB_SQUIRTLE_POKE_BALL",
-      choseFlag = "EVENT_CHOSE_SQUIRTLE",
-      rivalSlot = "RIGHT",
+      choseFlag = "EVENT_CHOSE_SQUIRTLE", rivalSlot = "RIGHT",
       rivalBallObject = "OAKSLAB_BULBASAUR_POKE_BALL",
     },
     RIGHT = {
       option = "bulbasaur_ball", default = "BULBASAUR",
       ballText = "TEXT_OAKSLAB_BULBASAUR_POKE_BALL",
       ballObject = "OAKSLAB_BULBASAUR_POKE_BALL",
-      choseFlag = "EVENT_CHOSE_BULBASAUR",
-      rivalSlot = "LEFT",
+      choseFlag = "EVENT_CHOSE_BULBASAUR", rivalSlot = "LEFT",
       rivalBallObject = "OAKSLAB_CHARMANDER_POKE_BALL",
     },
   }
+  -- Elm's Lab uses the same left/middle/right counter-pick relationship, but
+  -- Gold's objects are indices 3/4/5 and its native starters are Gen 2's trio.
+  local GEN2_SLOTS = {
+    LEFT = { option = "cyndaquil_ball", default = "CYNDAQUIL", ballObjectIndex = 3, scriptKey = "60:40c6", rivalSlot = "MIDDLE" },
+    MIDDLE = { option = "totodile_ball", default = "TOTODILE", ballObjectIndex = 4, scriptKey = "60:4108", rivalSlot = "RIGHT" },
+    RIGHT = { option = "chikorita_ball", default = "CHIKORITA", ballObjectIndex = 5, scriptKey = "60:4144", rivalSlot = "LEFT" },
+  }
+  local SLOTS = isGen2() and GEN2_SLOTS or GEN1_SLOTS
 
   local PENDING_STARTER_SLOT_KEY = "pending_starter_slot"
   local STARTER_SLOT_KEY = "received_starter_slot"
@@ -52,9 +62,10 @@ return function(mod)
   local function choiceRows()
     local rows = {}
     for speciesId, pokemon in mod.content.pokemon:each() do
-      -- Limit the picker to the standard 151 Pokédex entries. Any species a
-      -- content mod adds beyond Gen 1's dex range stays out of this UI.
-      if type(pokemon.dex) == "number" and pokemon.dex >= 1 and pokemon.dex <= 151 then
+      -- Use the standard dex range for the active generation: 151 on Gen 1
+      -- and 251 on Gold. Species added by unrelated content mods stay out.
+      local maxDex = isGen2() and 251 or 151
+      if type(pokemon.dex) == "number" and pokemon.dex >= 1 and pokemon.dex <= maxDex then
         rows[#rows + 1] = { string.format("%03d %s", pokemon.dex, pokemon.name), speciesId }
       end
     end
@@ -63,24 +74,35 @@ return function(mod)
   end
 
   local CHOICES = choiceRows()
+  local HELD_ITEM_CHOICES = { { "VANILLA", "VANILLA" } }
+  if isGen2() then
+    for itemId, item in mod.content.items:each() do
+      if item and item.heldEffect and item.heldEffect ~= "HELD_NONE"
+        and item.canToss ~= false and item.pocket ~= "KEY_ITEM" then
+        HELD_ITEM_CHOICES[#HELD_ITEM_CHOICES + 1] = { item.name or itemId, itemId }
+      end
+    end
+    table.sort(HELD_ITEM_CHOICES, function(a, b) return a[1] < b[1] end)
+  end
+
   mod.options:define({
     {
-      key = "charmander_ball",
-      label = "CHARMANDER BALL",
+      key = SLOTS.LEFT.option,
+      label = SLOTS.LEFT.default .. " BALL",
       type = "choice",
       default = SLOTS.LEFT.default,
       choices = CHOICES,
     },
     {
-      key = "squirtle_ball",
-      label = "SQUIRTLE BALL",
+      key = SLOTS.MIDDLE.option,
+      label = SLOTS.MIDDLE.default .. " BALL",
       type = "choice",
       default = SLOTS.MIDDLE.default,
       choices = CHOICES,
     },
     {
-      key = "bulbasaur_ball",
-      label = "BULBASAUR BALL",
+      key = SLOTS.RIGHT.option,
+      label = SLOTS.RIGHT.default .. " BALL",
       type = "choice",
       default = SLOTS.RIGHT.default,
       choices = CHOICES,
@@ -90,6 +112,13 @@ return function(mod)
       label = "MAX PLAYER STARTER DVS",
       type = "toggle",
       default = false,
+    },
+    {
+      key = "starter_held_item",
+      label = "STARTER HELD ITEM (GOLD)",
+      type = "choice",
+      default = "VANILLA",
+      choices = HELD_ITEM_CHOICES,
     },
   })
 
@@ -103,6 +132,15 @@ return function(mod)
     local chosen = mod.options:get(slot.option)
     if validSpecies(game, chosen) then return chosen end
     return slot.default
+  end
+
+  local function selectedStarterHeldItemIndex(game, vanillaIndex)
+    if not isGen2(game) then return vanillaIndex end
+    local selected = mod.options:get("starter_held_item")
+    if selected == nil or selected == "VANILLA" then return vanillaIndex end
+    local item = game and game.data and game.data.items and game.data.items[selected]
+    if item and item.index ~= nil then return item.index end
+    return vanillaIndex
   end
 
   -- Gen 1 Randomizer randomizes Oak's Lab starters only after its setup has
@@ -133,16 +171,16 @@ return function(mod)
   end
 
   local function expForLevel(growthRate, level)
-    if growthRate == "SLIGHTLY_FAST" then
+    if growthRate == "SLIGHTLY_FAST" or growthRate == "GROWTH_SLIGHTLY_FAST" then
       return math.max(0, math.floor((3 * level ^ 3) / 4) + 10 * level ^ 2 - 30)
-    elseif growthRate == "SLIGHTLY_SLOW" then
+    elseif growthRate == "SLIGHTLY_SLOW" or growthRate == "GROWTH_SLIGHTLY_SLOW" then
       return math.max(0, math.floor((3 * level ^ 3) / 4) + 20 * level ^ 2 - 70)
-    elseif growthRate == "MEDIUM_SLOW" then
+    elseif growthRate == "MEDIUM_SLOW" or growthRate == "GROWTH_MEDIUM_SLOW" then
       return math.max(0, math.floor((6 * level ^ 3) / 5) - 15 * level ^ 2
         + 100 * level - 140)
-    elseif growthRate == "FAST" then
+    elseif growthRate == "FAST" or growthRate == "GROWTH_FAST" then
       return math.floor((4 * level ^ 3) / 5)
-    elseif growthRate == "SLOW" then
+    elseif growthRate == "SLOW" or growthRate == "GROWTH_SLOW" then
       return math.floor((5 * level ^ 3) / 4)
     end
     return level ^ 3 -- MEDIUM_FAST and a safe fallback
@@ -150,12 +188,18 @@ return function(mod)
 
   local function recalculatedStats(speciesDef, level, dvs, statExp)
     local stats = {}
-    local keys = { "hp", "attack", "defense", "speed", "special" }
+    local baseStats = speciesDef.baseStats or {}
+    local keys = baseStats.specialAttack and
+      { "hp", "attack", "defense", "speed", "specialAttack", "specialDefense" }
+      or { "hp", "attack", "defense", "speed", "special" }
     for _, key in ipairs(keys) do
-      local base = (speciesDef.baseStats and speciesDef.baseStats[key]) or 1
-      local dv = (dvs and dvs[key]) or 0
+      local base = baseStats[key] or 1
+      -- Gold stores one Special DV for both split Special stats.
+      local dvKey = (key == "specialAttack" or key == "specialDefense") and "special" or key
+      local dv = (dvs and dvs[dvKey]) or 0
+      local expKey = (key == "specialAttack" or key == "specialDefense") and "special" or key
       local ev = math.floor(math.min(255,
-        math.ceil(math.sqrt((statExp and statExp[key]) or 0))) / 4)
+        math.ceil(math.sqrt((statExp and (statExp[expKey] or statExp[key])) or 0))) / 4)
       local value = math.floor(((base + dv) * 2 + ev) * level / 100)
       stats[key] = value + (key == "hp" and level + 10 or 5)
     end
@@ -193,7 +237,7 @@ return function(mod)
       end
     end
     for _, moveId in ipairs(speciesDef.level1Moves or {}) do add(moveId) end
-    for _, entry in ipairs(speciesDef.learnset or {}) do
+    for _, entry in ipairs(speciesDef.learnset or speciesDef.levelMoves or {}) do
       if entry.level <= level then add(entry.move) end
     end
     while #ids > 4 do table.remove(ids, 1) end
@@ -232,6 +276,8 @@ return function(mod)
       dex.owned = dex.owned or {}
       dex.seen[speciesId] = true
       dex.owned[speciesId] = true
+      dex.caught = dex.caught or {}
+      dex.caught[speciesId] = true
     end
     return true
   end
@@ -247,9 +293,14 @@ return function(mod)
     return nil
   end
 
-  local function applyPostLabMaxDVs(game)
+  local function starterWasReceived(game)
+    if isGen2(game) then return mod.save:get(STARTER_SLOT_KEY) ~= nil end
     local flags = game and game.save and game.save.flags or {}
-    if not flags.EVENT_GOT_STARTER then return end
+    return flags.EVENT_GOT_STARTER == true
+  end
+
+  local function applyPostLabMaxDVs(game)
+    if not starterWasReceived(game) then return end
 
     local mon = findTrackedStarter(game, mod.save:get(STARTER_SPECIES_KEY))
     if forceMaxDVs(game, mon) then
@@ -260,7 +311,7 @@ return function(mod)
   local function applyPostLabSelection(game, slotName)
     local flags = game and game.save and game.save.flags or {}
     local chosenSlot = mod.save:get(STARTER_SLOT_KEY) or chosenStarterSlot(flags)
-    if not flags.EVENT_GOT_STARTER or chosenSlot ~= slotName then return end
+    if not starterWasReceived(game) or chosenSlot ~= slotName then return end
 
     local species = selectedSpecies(game, SLOTS[slotName])
     local mon = findTrackedStarter(game, mod.save:get(STARTER_SPECIES_KEY))
@@ -320,6 +371,7 @@ return function(mod)
   -- the current named selector only to the starter gift this mod initiated.
   mod.events:on("pokemon.before_give", function(gift)
     local ctx = gift and gift.ctx
+    if isGen2(ctx and ctx.game) then return end
     local game = ctx and ctx.game
     local flags = ctx and ctx.save and ctx.save.flags or {}
     local slotName = mod.save:get(PENDING_STARTER_SLOT_KEY)
@@ -339,6 +391,39 @@ return function(mod)
     mod.save:set(STARTER_SLOT_KEY, slotName)
     mod.save:set(STARTER_SPECIES_KEY, gift.species)
   end, -10000)
+
+  -- Gold's bytecode VM does not use Gen 1's gift event. Its shared
+  -- script-command hook runs before `givepoke` constructs and inserts the
+  -- player mon, so rewrite only the three Elm's Lab ball scripts and apply the
+  -- optional player-only maximum DVs immediately after insertion.
+  mod.hooks:wrap("script.command", function(next, ctx, name, args, cmd)
+    if isGen2() and name == "givepoke" and type(ctx) == "table"
+      and ctx.mapId == "ELMS_LAB" then
+      local slotName
+      for candidateName, slot in pairs(SLOTS) do
+        if ctx.object == slot.ballObjectIndex then slotName = candidateName break end
+      end
+      local slot = slotName and SLOTS[slotName]
+      local game = mod.game or lastGame
+      if slot and game and validSpecies(game, selectedSpecies(game, slot)) then
+        local species = selectedSpecies(game, slot)
+        local replacement = {}
+        for key, value in pairs(cmd or {}) do replacement[key] = value end
+        replacement.species = game.data.pokemon[species].index
+        replacement.item = selectedStarterHeldItemIndex(game, replacement.item)
+        lastGame = game
+        mod.save:set(STARTER_SLOT_KEY, slotName)
+        mod.save:set(STARTER_SPECIES_KEY, species)
+        local result = next(ctx, name, args, replacement)
+        local mon = findTrackedStarter(game, species)
+        if mod.options:get(MAX_STARTER_DVS_OPTION) == true and forceMaxDVs(game, mon) then
+          mod.save:set(MAX_STARTER_DVS_APPLIED_KEY, true)
+        end
+        return result
+      end
+    end
+    return next(ctx, name, args, cmd)
+  end)
 
   local function starterBallHandler(slotName, slot)
     return function(game, overworld, npc, onDone)
@@ -392,19 +477,23 @@ return function(mod)
     end
   end
 
-  mod.content.map_scripts:register("OAKS_LAB", {
-    priority = 120,
-    talk = {
-      TEXT_OAKSLAB_CHARMANDER_POKE_BALL = starterBallHandler("LEFT", SLOTS.LEFT),
-      TEXT_OAKSLAB_SQUIRTLE_POKE_BALL = starterBallHandler("MIDDLE", SLOTS.MIDDLE),
-      TEXT_OAKSLAB_BULBASAUR_POKE_BALL = starterBallHandler("RIGHT", SLOTS.RIGHT),
-    },
-  })
+  if not isGen2() then
+    mod.content.map_scripts:register("OAKS_LAB", {
+      priority = 120,
+      talk = {
+        TEXT_OAKSLAB_CHARMANDER_POKE_BALL = starterBallHandler("LEFT", SLOTS.LEFT),
+        TEXT_OAKSLAB_SQUIRTLE_POKE_BALL = starterBallHandler("MIDDLE", SLOTS.MIDDLE),
+        TEXT_OAKSLAB_BULBASAUR_POKE_BALL = starterBallHandler("RIGHT", SLOTS.RIGHT),
+      },
+    })
+  end
 
   local RIVAL_CLASSES = {
     OPP_RIVAL1 = true,
     OPP_RIVAL2 = true,
     OPP_RIVAL3 = true,
+    RIVAL1 = true,
+    RIVAL2 = true,
   }
   -- Native party indices 1/2/3 correspond to player left/middle/right,
   -- whose rival counter-picks are middle/right/left respectively.
@@ -422,13 +511,22 @@ return function(mod)
 
   mod.hooks:wrap("trainer.party", function(next, trainerClass, partyIndex, party)
     party = next(trainerClass, partyIndex, party)
-    if not RIVAL_CLASSES[trainerClass]
-      or type(partyIndex) ~= "number"
-      or partyIndex < 1
-      or #party == 0 then
-      return party
+    if not RIVAL_CLASSES[trainerClass] or #party == 0 then return party end
+
+    if isGen2(mod.game) then
+      -- Gold identifies rival rosters by names such as RIVAL1_2_CHIKORITA.
+      -- The selected ball, not the rival's independent DV/item generation,
+      -- controls only the last starter-line party member.
+      local playerSlot = mod.save:get(STARTER_SLOT_KEY)
+      local rivalSlot = playerSlot and SLOTS[playerSlot] and SLOTS[playerSlot].rivalSlot
+      local species = rivalSlot and selectedSpecies(mod.game, SLOTS[rivalSlot])
+      if not validSpecies(mod.game, species) then return party end
+      local replaced = copyParty(party)
+      replaced[#replaced].species = species
+      return replaced
     end
 
+    if type(partyIndex) ~= "number" or partyIndex < 1 then return party end
     local slotName = RIVAL_SLOT_BY_PARTY_OFFSET[((partyIndex - 1) % 3) + 1]
     local species = selectedSpecies(mod.game, SLOTS[slotName])
     if not validSpecies(mod.game, species) then return party end

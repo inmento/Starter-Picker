@@ -4,6 +4,7 @@ local optionValues = {
   squirtle_ball = "MEW",
   bulbasaur_ball = "BULBASAUR",
   max_starter_dvs = true,
+  starter_held_item = "VANILLA",
 }
 local modSave = {}
 local species = {
@@ -98,11 +99,12 @@ local mod = {
 
 local entry = assert(loadfile("/home/ubuntu/starter_picker/main.lua"))
 entry()(mod)
-assert(#callbacks.schema == 4, "three picker options and the max-DV toggle were not defined")
+assert(#callbacks.schema == 5, "three picker options, the max-DV toggle, and the Gold held-item option were not defined")
 assert(callbacks.schema[1].key == "charmander_ball", "Charmander Ball option missing")
 assert(callbacks.schema[2].key == "squirtle_ball", "Squirtle Ball option missing")
 assert(callbacks.schema[3].key == "bulbasaur_ball", "Bulbasaur Ball option missing")
 assert(callbacks.schema[4].key == "max_starter_dvs", "max player starter DVs option missing")
+assert(callbacks.schema[5].key == "starter_held_item", "Gold starter held-item option missing")
 assert(callbacks.events["pokemon.before_give"].priority == -10000,
   "starter gift override did not register after Randomizer")
 assert(callbacks.events["mod.options_changed"], "live selector-change listener missing")

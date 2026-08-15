@@ -1,15 +1,16 @@
 # Starter Picker
 
-Starter Picker is a separate Gen 1 Recomp mod for the three-ball Oak’s Lab sequence in Red and Blue. The mod options provide three independent, named Pokémon selectors: one each for the original **Charmander Ball**, **Bulbasaur Ball**, and **Squirtle Ball**.
+Starter Picker supports the three-ball Oak’s Lab sequence in Gen 1 and the three-ball Elm’s Lab sequence in Gold. The mod options provide three independent, named Pokémon selectors for the active generation. **Gold support is declared but has not been tested in a player game.**
 
 | Option | Original Oak’s Lab ball | Native rival counter-pick |
 |---|---|---|
 | **CHARMANDER BALL** | Charmander | Squirtle Ball |
 | **SQUIRTLE BALL** | Squirtle | Bulbasaur Ball |
 | **BULBASAUR BALL** | Bulbasaur | Charmander Ball |
-| **MAX PLAYER STARTER DVS** | Gives only the player's selected starter maximum Gen 1 DVs | Does not affect the rival |
+| **MAX PLAYER STARTER DVS** | Gives only the player's selected starter maximum DVs | Does not affect the rival |
+| **STARTER HELD ITEM (GOLD)** | Leaves the native item unchanged or selects a safe Gold held item for the player’s Elm’s Lab starter | Does not affect the rival |
 
-Each selector lists the standard 151 Gen 1 Pokémon, including Mew. The vanilla species remain available so any position can be left unchanged. Duplicate choices are allowed deliberately: you can put the same Pokémon into more than one ball if you want.
+Each selector lists the standard 151 Gen 1 Pokémon in Gen 1 and all standard **251** species in Gold, including Mew and Celebi. The vanilla species remain available so any position can be left unchanged. Duplicate choices are allowed deliberately: you can put the same Pokémon into more than one ball if you want.
 
 ## How it works
 
@@ -23,6 +24,14 @@ Enable **MAX PLAYER STARTER DVS** before receiving a starter to set the player�
 
 This option intentionally does **not** change the rival path. The mod’s rival-party integration only substitutes the configured species in the rival’s appropriate starter slot. It does not read, write, or recalculate rival DVs, so the game continues to use its normal trainer-party DV assignment.
 
+## Gold support — untested
+
+In Gold, the selectors are **CYNDAQUIL BALL**, **TOTODILE BALL**, and **CHIKORITA BALL**. They follow the same left/middle/right rival counter-pick relationship as the Gen 1 version. The mod rewrites only Elm’s Lab’s `givepoke` command for the selected ball, then marks and optionally upgrades only the player’s newly added party Pokémon. Gold’s split Special Attack and Special Defense stats are recalculated from the shared Special DV when a live player-starter species replacement is made.
+
+**STARTER HELD ITEM (GOLD)** defaults to **VANILLA**, retaining Gold’s native starter berry. Choosing an item changes only the player’s Elm’s Lab gift. It does not write to the rival party, its held item, or its DV fields.
+
+> **Testing notice:** The Gold implementation has offline syntax and isolated harness coverage, but remains untested in a player-imported Gold save. Back up a save before trying it.
+
 ## Gen 1 Randomizer interoperability
 
 Starter Picker explicitly checks for the installed **Gen 1 Randomizer** (`gen1_randomizer`) and reads that save’s confirmed setup. Its starter randomization is considered active only after the Randomizer setup is confirmed with **LOGIC** or **NO LOGIC** mode; **VANILLA** mode is recognized as inactive.
@@ -35,11 +44,11 @@ You may change all three named selectors at any time, including after loading a 
 
 After the starter has been received, change **only the selector matching the ball position you chose**. The mod immediately rebuilds that tracked party Pokémon as the newly selected species while preserving its level, DVs, stat experience, original trainer data, and current HP loss. Its moves, experience total, catch rate, status, and stats are refreshed for the new species; it is also marked as owned in the Pokédex. Changing one of the two unchosen ball selectors updates the rival’s corresponding future team but does not alter the player’s party.
 
-This version targets the Red/Blue three-ball Oak’s Lab sequence. Pokémon Yellow has a different Pikachu/Eevee starter scene and is intentionally left unchanged.
+The Gen 1 path targets the Red/Blue three-ball Oak’s Lab sequence. Pokémon Yellow has a different Pikachu/Eevee starter scene and is intentionally left unchanged. The Gold path targets Elm’s Lab; it is **untested** in-game.
 
 ## Install
 
-Import `starter_picker-0.0.2.zip` through Gen 1 Recomp’s **Import mod .zip** action, or extract the files into this exact layout:
+Import `starter_picker-0.0.3.zip` through Gen 1 Recomp’s **Import mod .zip** action, or extract the files into this exact layout:
 
 ```text
 mods/
@@ -53,4 +62,4 @@ There must be no nested parent folder between `starter_picker/` and `manifest.js
 
 ## Verification status
 
-The manifest has been checked as valid JSON and `main.lua` has passed offline Lua syntax parsing. It has not been run against a player-imported game in this environment.
+The manifest has been checked as valid JSON and `main.lua` has passed offline Lua syntax parsing. Isolated harnesses cover the established Gen 1 selector/DV isolation flow and the Gold 251-species, Elm’s Lab gift, held-item, split-stat, and rival-isolation paths. **Gold has not been run in a player-imported game**, so please back up a save before testing it.
