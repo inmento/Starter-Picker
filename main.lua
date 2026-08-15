@@ -322,20 +322,29 @@ return function(mod)
     return nil
   end
 
+  local function goldDisplayName(game, species)
+    local def = game and game.data and game.data.pokemon and game.data.pokemon[species]
+    return tostring((def and def.name) or species):upper()
+  end
+
   local function rebuildGoldStarter(game, mon, slotName)
     if not (isGen2(game) and type(mon) == "table" and GOLD_SLOTS[slotName]) then return false end
     local Mon = require("src.battle.gen2.Mon")
     local slot = GOLD_SLOTS[slotName]
     local species = selectedSpecies(game, slot)
+    local firstGift = not mod.save:get(GOLD_RECEIVED_KEY)
     local old = {
       ot = mon.ot, otName = mon.otName, otId = mon.otId, nickname = mon.nickname,
       happiness = mon.happiness, pokerus = mon.pokerus,
     }
     local replacement = Mon.new(game.data, species, mon.level or 5, {
       dvs = goldDVs(mon.dvs), item = goldHeldItem(game, mon.item),
-      nickname = old.nickname, happiness = old.happiness, pokerus = old.pokerus,
+      nickname = firstGift and nil or old.nickname, happiness = old.happiness, pokerus = old.pokerus,
     })
     if not replacement then return false end
+    -- The Elm choice screen and party summary use the selected species name,
+    -- not the native ball species or a carried-over nickname from recovery.
+    replacement.name = goldDisplayName(game, species)
     for key in pairs(mon) do mon[key] = nil end
     for key, value in pairs(replacement) do mon[key] = value end
     mon.ot, mon.otName, mon.otId = old.ot, old.otName, old.otId
@@ -602,14 +611,32 @@ return function(mod)
     mod.hooks:wrap("script.command", function(next, ctx, name, args, cmd)
       local game = mod.game or lastGame
       local slotName = goldSlotForScript(ctx)
-      if name ~= "givepoke" or not slotName or mod.save:get(GOLD_RECEIVED_KEY) then
-        return next(ctx, name, args, cmd)
-      end
+      if not slotName then return next(ctx, name, args, cmd) end
 
       local slot = GOLD_SLOTS[slotName]
       local target = selectedSpecies(game, slot)
       local targetDef = game and game.data and game.data.pokemon and game.data.pokemon[target]
       if not targetDef or not cmd then return next(ctx, name, args, cmd) end
+
+      -- Elm previews each native starter before `givepoke`. Rewrite the visual,
+      -- cry, and dynamic species-name command so the whole selection scene
+      -- represents the configured starter rather than only the final party data.
+      if name == "pokepic" or name == "cry" or name == "getmonname" then
+        local rewritten = {}
+        for key, value in pairs(cmd) do rewritten[key] = value end
+        if name == "cry" then
+          -- Gold's `cry` carries its species as `id`; Elm's `pokepic` and
+          -- `getmonname` carry it as `species`.
+          rewritten.id = targetDef.index
+        else
+          rewritten.species = targetDef.index
+        end
+        return next(ctx, name, args, rewritten)
+      end
+
+      if name ~= "givepoke" or mod.save:get(GOLD_RECEIVED_KEY) then
+        return next(ctx, name, args, cmd)
+      end
 
       local rewritten = {}
       for key, value in pairs(cmd) do rewritten[key] = value end

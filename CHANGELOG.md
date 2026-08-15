@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 — Gold Elm Presentation Fix
+
+Elm’s Lab now updates the selected starter’s preview picture, cry, and received-Pokémon name before the gift is added to the party. The initial player starter uses the configured species name in uppercase, matching the Gold presentation style.
+
 ## 1.0.0 — Full Release
 
 Starter Picker 1.0.0 lets players choose starters by their original ball position while preserving the game’s rival counter-pick logic. The selected player ball remains the source of truth in both Gen 1 and Gold, and selections can be adjusted from the mod options before the starter is received.

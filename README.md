@@ -6,7 +6,7 @@ Starter Picker lets players choose starters by original ball position in Gen 1 a
 
 ## Install
 
-Import the `starter_picker-1.0.0.zip` release archive through Gen 1 Recomp’s **Import mod .zip** action. The archive extracts directly to a `starter_picker/` folder containing `manifest.json` and `main.lua`.
+Import the `starter_picker-1.0.1.zip` release archive through Gen 1 Recomp’s **Import mod .zip** action. The archive extracts directly to a `starter_picker/` folder containing `manifest.json` and `main.lua`.
 
 ## Features
 
@@ -28,4 +28,4 @@ Starter Picker supports the authorized Gen 1 and Gold Randomizer compatibility p
 
 ## Compatibility
 
-Starter Picker targets Mod API 2 and supports Gen 1 and Gold. See [CHANGELOG.md](CHANGELOG.md) for the complete 1.0.0 feature list, including player-only DV modes and held-item behavior. See [CREDITS.md](CREDITS.md) for Randomizer compatibility credit.
+Starter Picker targets Mod API 2 and supports Gen 1 and Gold. See [CHANGELOG.md](CHANGELOG.md) for the complete release feature list, including player-only DV modes and held-item behavior. See [CREDITS.md](CREDITS.md) for Randomizer compatibility credit.
