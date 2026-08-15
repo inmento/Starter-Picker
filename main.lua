@@ -39,6 +39,10 @@ return function(mod)
   local STARTER_SPECIES_KEY = "received_starter_species"
   local RANDOMIZER_ID = "gen1_randomizer"
   local RANDOMIZER_OVERRIDE_KEY = "gen1_randomizer_starter_override_active"
+  local MAX_STARTER_DVS_OPTION = "max_starter_dvs"
+  local PENDING_MAX_STARTER_DVS_KEY = "pending_max_starter_dvs"
+  local MAX_STARTER_DVS_APPLIED_KEY = "starter_max_dvs_applied"
+  local lastGame = mod.game
   local SLOT_NAME_BY_OPTION = {
     [SLOTS.LEFT.option] = "LEFT",
     [SLOTS.MIDDLE.option] = "MIDDLE",
@@ -80,6 +84,12 @@ return function(mod)
       type = "choice",
       default = SLOTS.RIGHT.default,
       choices = CHOICES,
+    },
+    {
+      key = MAX_STARTER_DVS_OPTION,
+      label = "MAX PLAYER STARTER DVS",
+      type = "toggle",
+      default = false,
     },
   })
 
@@ -152,6 +162,28 @@ return function(mod)
     return stats
   end
 
+  -- In Gen 1, HP DV is derived from the low bits of Attack, Defense, Speed,
+  -- and Special. Four maximum DVs therefore make HP maximum as well.
+  local function maxDVs()
+    return { hp = 15, attack = 15, defense = 15, speed = 15, special = 15 }
+  end
+
+  local function forceMaxDVs(game, mon)
+    local speciesDef = game and game.data and game.data.pokemon
+      and mon and game.data.pokemon[mon.species]
+    if type(mon) ~= "table" or not speciesDef then return false end
+
+    local level = math.max(1, math.min(100, tonumber(mon.level) or 5))
+    local oldMaxHp = mon.stats and mon.stats.hp or mon.hp or 1
+    local hpLost = math.max(0, oldMaxHp - (tonumber(mon.hp) or oldMaxHp))
+    mon.statExp = mon.statExp
+      or { hp = 0, attack = 0, defense = 0, speed = 0, special = 0 }
+    mon.dvs = maxDVs()
+    mon.stats = recalculatedStats(speciesDef, level, mon.dvs, mon.statExp)
+    mon.hp = math.max(1, mon.stats.hp - hpLost)
+    return true
+  end
+
   local function movesAtLevel(game, speciesDef, level)
     local ids, seen = {}, {}
     local function add(moveId)
@@ -215,6 +247,16 @@ return function(mod)
     return nil
   end
 
+  local function applyPostLabMaxDVs(game)
+    local flags = game and game.save and game.save.flags or {}
+    if not flags.EVENT_GOT_STARTER then return end
+
+    local mon = findTrackedStarter(game, mod.save:get(STARTER_SPECIES_KEY))
+    if forceMaxDVs(game, mon) then
+      mod.save:set(MAX_STARTER_DVS_APPLIED_KEY, true)
+    end
+  end
+
   local function applyPostLabSelection(game, slotName)
     local flags = game and game.save and game.save.flags or {}
     local chosenSlot = mod.save:get(STARTER_SLOT_KEY) or chosenStarterSlot(flags)
@@ -223,18 +265,47 @@ return function(mod)
     local species = selectedSpecies(game, SLOTS[slotName])
     local mon = findTrackedStarter(game, mod.save:get(STARTER_SPECIES_KEY))
     if replaceStarterSpecies(game, mon, species) then
+      if mod.options:get(MAX_STARTER_DVS_OPTION) == true then
+        forceMaxDVs(game, mon)
+        mod.save:set(MAX_STARTER_DVS_APPLIED_KEY, true)
+      end
       mod.save:set(STARTER_SLOT_KEY, slotName)
       mod.save:set(STARTER_SPECIES_KEY, species)
     end
   end
 
+  mod.events:on("game.ready", function(event)
+    lastGame = (event and event.game) or lastGame or mod.game
+  end)
+
   mod.events:on("mod.options_changed", function(event)
     if type(event) ~= "table" then return end
     local changedModId = type(event.mod) == "table" and event.mod.id or event.mod
+    if changedModId ~= mod.id then return end
+
     local slotName = SLOT_NAME_BY_OPTION[event.key]
-    if changedModId == mod.id and slotName then
-      applyPostLabSelection(mod.game, slotName)
+    if slotName then
+      applyPostLabSelection(mod.game or lastGame, slotName)
+    elseif event.key == MAX_STARTER_DVS_OPTION and event.value == true then
+      -- Turning the setting on after Oak's Lab upgrades only the tracked
+      -- player starter. Turning it off deliberately does not rewrite DVs.
+      applyPostLabMaxDVs(mod.game or lastGame)
     end
+  end)
+
+  -- `pokemon.before_give` runs before the engine constructs the Pokémon, and
+  -- its current public payload only applies species, level, and nickname.
+  -- The first screen after Oak's Lab's give command is the nickname prompt;
+  -- by then the player mon has entered the party, so this applies DVs only to
+  -- that marked gift and never enters the independent trainer.party path.
+  mod.events:on("screen.pushed", function()
+    if not mod.save:get(PENDING_MAX_STARTER_DVS_KEY) then return end
+    local game = lastGame or mod.game
+    local mon = findTrackedStarter(game, mod.save:get(STARTER_SPECIES_KEY))
+    if forceMaxDVs(game, mon) then
+      mod.save:set(MAX_STARTER_DVS_APPLIED_KEY, true)
+    end
+    mod.save:set(PENDING_MAX_STARTER_DVS_KEY, nil)
   end)
 
   local function ballX(objectId)
@@ -261,6 +332,9 @@ return function(mod)
     local randomizerActive = randomizerStarterRandomizationActive(game)
     gift.species = selectedSpecies(game, slot)
     gift.level = 5
+    lastGame = game or lastGame
+    mod.save:set(PENDING_MAX_STARTER_DVS_KEY,
+      mod.options:get(MAX_STARTER_DVS_OPTION) == true or nil)
     mod.save:set(RANDOMIZER_OVERRIDE_KEY, randomizerActive)
     mod.save:set(STARTER_SLOT_KEY, slotName)
     mod.save:set(STARTER_SPECIES_KEY, gift.species)

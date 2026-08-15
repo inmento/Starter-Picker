@@ -7,6 +7,7 @@ Starter Picker is a separate Gen 1 Recomp mod for the three-ball Oak’s Lab seq
 | **CHARMANDER BALL** | Charmander | Squirtle Ball |
 | **SQUIRTLE BALL** | Squirtle | Bulbasaur Ball |
 | **BULBASAUR BALL** | Bulbasaur | Charmander Ball |
+| **MAX PLAYER STARTER DVS** | Gives only the player's selected starter maximum Gen 1 DVs | Does not affect the rival |
 
 Each selector lists the standard 151 Gen 1 Pokémon, including Mew. The vanilla species remain available so any position can be left unchanged. Duplicate choices are allowed deliberately: you can put the same Pokémon into more than one ball if you want.
 
@@ -15,6 +16,12 @@ Each selector lists the standard 151 Gen 1 Pokémon, including Mew. The vanilla 
 The mod replaces only the three starter-ball interactions. It preserves the original ball-position flags, object hiding, rival movement, and counter-pick relationship. For example, if you set **CHARMANDER BALL** to Mewtwo and **SQUIRTLE BALL** to Mew, choosing the original Charmander Ball gives you Mewtwo and makes the rival take Mew from the Squirtle Ball. The rival’s later teams retain their native levels, moves, and party structure, with only that starter-line Pokémon replaced.
 
 The selectors are read live rather than being fixed when a save loads. A player can load a playthrough, open the mod options, and change any of the three named selections. After Oak’s Lab, changing the selector for the ball position that was chosen immediately replaces the tracked starter in the party.
+
+## Maximum player-starter DVs
+
+Enable **MAX PLAYER STARTER DVS** before receiving a starter to set the player’s selected starter to maximum Gen 1 DVs: **HP, Attack, Defense, Speed, and Special are all 15**. The engine derives the HP DV from the other four DVs; with all four at 15, HP is also 15. Enabling this option after Oak’s Lab applies it to the tracked player starter, and selecting a different species for that same chosen ball keeps the maximum-DV setting enabled.
+
+This option intentionally does **not** change the rival path. The mod’s rival-party integration only substitutes the configured species in the rival’s appropriate starter slot. It does not read, write, or recalculate rival DVs, so the game continues to use its normal trainer-party DV assignment.
 
 ## Gen 1 Randomizer interoperability
 
@@ -32,7 +39,7 @@ This version targets the Red/Blue three-ball Oak’s Lab sequence. Pokémon Yell
 
 ## Install
 
-Import `starter_picker-0.0.1.zip` through Gen 1 Recomp’s **Import mod .zip** action, or extract the files into this exact layout:
+Import `starter_picker-0.0.2.zip` through Gen 1 Recomp’s **Import mod .zip** action, or extract the files into this exact layout:
 
 ```text
 mods/
