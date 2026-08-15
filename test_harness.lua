@@ -1,9 +1,10 @@
-local callbacks = { hooks = {}, events = {}, mapContribution = nil }
+local callbacks = { hooks = {}, hookPriority = {}, events = {}, mapContribution = nil }
 local optionValues = {
   charmander_ball = "MEWTWO",
   squirtle_ball = "MEW",
   bulbasaur_ball = "BULBASAUR",
   max_starter_dvs = true,
+  shiny_player_starter = false,
   starter_held_item = "VANILLA",
 }
 local modSave = {}
@@ -93,21 +94,27 @@ local mod = {
     end,
   },
   hooks = {
-    wrap = function(_, name, fn) callbacks.hooks[name] = fn end,
+    wrap = function(_, name, fn, priority)
+      callbacks.hooks[name] = fn
+      callbacks.hookPriority[name] = priority
+    end,
   },
 }
 
 local entry = assert(loadfile("/home/ubuntu/starter_picker/main.lua"))
 entry()(mod)
-assert(#callbacks.schema == 5, "three picker options, the max-DV toggle, and the Gold held-item option were not defined")
+assert(#callbacks.schema == 6, "three picker options, the max-DV toggle, shiny toggle, and Gold held-item option were not defined")
 assert(callbacks.schema[1].key == "charmander_ball", "Charmander Ball option missing")
 assert(callbacks.schema[2].key == "squirtle_ball", "Squirtle Ball option missing")
 assert(callbacks.schema[3].key == "bulbasaur_ball", "Bulbasaur Ball option missing")
 assert(callbacks.schema[4].key == "max_starter_dvs", "max player starter DVs option missing")
-assert(callbacks.schema[5].key == "starter_held_item", "Gold starter held-item option missing")
+assert(callbacks.schema[5].key == "shiny_player_starter", "player shiny starter option missing")
+assert(callbacks.schema[6].key == "starter_held_item", "Gold starter held-item option missing")
 assert(callbacks.events["pokemon.before_give"].priority == -10000,
   "starter gift override did not register after Randomizer")
 assert(callbacks.events["mod.options_changed"], "live selector-change listener missing")
+assert(callbacks.hookPriority["trainer.party"] == -10000,
+  "rival counter-pick did not register after competing trainer transforms")
 
 callbacks.mapContribution.talk.TEXT_OAKSLAB_CHARMANDER_POKE_BALL(
   game, overworld, {}, function() end)
@@ -214,5 +221,36 @@ game.save.party = {
 callbacks.events["screen.pushed"].fn({ state = { screenId = "NicknamePrompt" } })
 assert(game.save.party[1].dvs.attack == 2 and game.save.party[1].dvs.hp == 2,
   "disabled max-DV option incorrectly rewrote the player starter's DVs")
+
+-- The shiny toggle creates a valid Gen 1/2 shiny DV combination on only the
+-- marked player starter. Shiny takes precedence over the maximum-DV setting.
+optionValues.max_starter_dvs = true
+optionValues.shiny_player_starter = true
+game.save.flags.EVENT_GOT_STARTER = false
+modSave.pending_starter_slot = "LEFT"
+local shinyGift = {
+  ctx = { game = game, overworld = overworld, save = game.save },
+  species = "BULBASAUR", level = 5,
+}
+callbacks.events["pokemon.before_give"].fn(shinyGift)
+game.save.party = {
+  {
+    species = shinyGift.species, level = 5, hp = 20,
+    dvs = { hp = 2, attack = 2, defense = 2, speed = 2, special = 2 },
+    statExp = { hp = 0, attack = 0, defense = 0, speed = 0, special = 0 },
+    stats = { hp = 20, attack = 10, defense = 10, speed = 10, special = 10 },
+  },
+}
+callbacks.events["screen.pushed"].fn({ state = { screenId = "NicknamePrompt" } })
+local shiny = game.save.party[1].dvs
+local shinyAttack = { [2] = true, [3] = true, [6] = true, [7] = true, [10] = true, [11] = true, [14] = true, [15] = true }
+assert(shinyAttack[shiny.attack] and shiny.defense == 10 and shiny.speed == 10 and shiny.special == 10,
+  "shiny player starter did not receive a valid shiny DV combination")
+assert(shiny.hp == ((shiny.attack % 2 == 1) and 8 or 0),
+  "shiny player starter did not derive HP DV from the shiny stored DVs")
+assert(modSave.starter_shiny_dvs_applied == true and modSave.starter_max_dvs_applied == nil,
+  "shiny starter did not take precedence over maximum DVs")
+assert(modSave.pending_shiny_player_starter == nil and modSave.pending_max_starter_dvs == nil,
+  "pending player shiny state was not cleared after the starter was created")
 
 print("starter picker named live-selector harness: valid")

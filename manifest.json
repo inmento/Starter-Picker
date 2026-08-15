@@ -1,12 +1,12 @@
 {
   "id": "starter_picker",
   "name": "Starter Picker",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "entry": "main.lua",
   "api": 2,
   "category": "GAMEPLAY",
   "profile": "content",
   "games": ["gen1", "gen2"],
   "affects_link": false,
-  "description": "Edit Gen 1 Oak’s Lab or Gold Elm’s Lab starter species, retain the rival counter-pick, select Gold starter held items, and optionally give only the player starter maximum DVs. Gold support is untested."
+  "description": "Edit Gen 1 Oak’s Lab or Gold Elm’s Lab starter species, retain the rival counter-pick, integrate safely with Gen 1/Gen 2 Randomizer starter modes, select or weight-randomize Gold starter held items, and optionally give only the player starter maximum DVs. Gold support is untested."
 }
