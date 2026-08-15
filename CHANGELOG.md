@@ -1,8 +1,8 @@
 # Changelog
 
-## 1.0.1 — Gold Elm Presentation Fix
+## 1.0.1 — Gold Elm Dialogue and Presentation Fix
 
-Elm’s Lab now updates the selected starter’s preview picture, cry, and received-Pokémon name before the gift is added to the party. The initial player starter uses the configured species name in uppercase, matching the Gold presentation style.
+Elm’s Lab now updates each starter ball’s selection prompt, preview picture, cry, and received-Pokémon name to use the configured species before the gift is added to the party. The initial player starter uses the configured species name in uppercase, matching the Gold presentation style.
 
 ## 1.0.0 — Full Release
 

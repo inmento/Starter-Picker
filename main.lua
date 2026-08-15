@@ -42,15 +42,18 @@ return function(mod)
   local GOLD_SLOTS = {
     LEFT = {
       option = "cyndaquil_ball", default = "CYNDAQUIL", objectIndex = 3,
-      scriptKey = "60:40c6", nativeSpeciesIndex = 155, rivalSlot = "MIDDLE",
+      scriptKey = "60:40c6", promptText = "60:45e3", promptLead = "ELM: You'll take",
+      nativeSpeciesIndex = 155, rivalSlot = "MIDDLE",
     },
     MIDDLE = {
       option = "totodile_ball", default = "TOTODILE", objectIndex = 4,
-      scriptKey = "60:4108", nativeSpeciesIndex = 158, rivalSlot = "RIGHT",
+      scriptKey = "60:4108", promptText = "60:460e", promptLead = "ELM: Do you want",
+      nativeSpeciesIndex = 158, rivalSlot = "RIGHT",
     },
     RIGHT = {
       option = "chikorita_ball", default = "CHIKORITA", objectIndex = 5,
-      scriptKey = "60:4144", nativeSpeciesIndex = 152, rivalSlot = "LEFT",
+      scriptKey = "60:4144", promptText = "60:463a", promptLead = "ELM: So, you like",
+      nativeSpeciesIndex = 152, rivalSlot = "LEFT",
     },
   }
 
@@ -325,6 +328,20 @@ return function(mod)
   local function goldDisplayName(game, species)
     local def = game and game.data and game.data.pokemon and game.data.pokemon[species]
     return tostring((def and def.name) or species):upper()
+  end
+
+  local function updateGoldElmPrompt(game, slotName)
+    local slot = GOLD_SLOTS[slotName]
+    if not (slot and slot.promptText) then return end
+    local text = game and game.data and (game.data.gen2Text or game.data.text)
+    if type(text) ~= "table" then return end
+    local species = selectedSpecies(game, slot)
+    text[slot.promptText] = string.format("%s\n%s, the\nPOKéMON?", slot.promptLead, goldDisplayName(game, species))
+    -- World keeps the same source table in normal Gold play, but update its
+    -- live reference too so the current Elm script sees a changed selection.
+    if game.world and type(game.world.text) == "table" then
+      game.world.text[slot.promptText] = text[slot.promptText]
+    end
   end
 
   local function rebuildGoldStarter(game, mon, slotName)
@@ -619,8 +636,14 @@ return function(mod)
       if not targetDef or not cmd then return next(ctx, name, args, cmd) end
 
       -- Elm previews each native starter before `givepoke`. Rewrite the visual,
-      -- cry, and dynamic species-name command so the whole selection scene
-      -- represents the configured starter rather than only the final party data.
+      -- cry, dynamic species-name command, and native ball prompt so the whole
+      -- selection scene represents the configured starter rather than only the
+      -- final party data.
+      if name == "writetext" and cmd.text == slot.promptText then
+        updateGoldElmPrompt(game, slotName)
+        return next(ctx, name, args, cmd)
+      end
+
       if name == "pokepic" or name == "cry" or name == "getmonname" then
         local rewritten = {}
         for key, value in pairs(cmd) do rewritten[key] = value end
