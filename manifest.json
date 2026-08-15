@@ -1,7 +1,7 @@
 {
   "id": "starter_picker",
   "name": "Starter Picker",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "entry": "main.lua",
   "api": 2,
   "category": "GAMEPLAY",
@@ -10,5 +10,5 @@
   "affects_link": false,
   "permissions": ["engine_internals"],
   "github": "inmento/Starter-Picker",
-  "description": "Choose player starters in Gen 1 and Gold, preserve rival counter-picks, select Gold held items, and apply player-only Max, Random, or Shiny DVs."
+  "description": "Choose player starters in Gen 1 and Gold, preserve rival counter-picks, browse Gen 1 selections in-game, select Gold held items, and apply player-only DVs."
 }

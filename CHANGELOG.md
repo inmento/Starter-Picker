@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.2 — Gen 1 Starter Controls and Maximum-DV Fix
+
+The Gen 1 **MAX PLAYER STARTER DVS** option now applies at both Oak's Lab's post-gift screen boundary and script completion. This keeps the change limited to the player starter while covering Oak's Lab presentation paths that previously missed the update.
+
+Gen 1 now also adds **PICK LEFT BALL**, **PICK MIDDLE BALL**, and **PICK RIGHT BALL** to **START > OPTIONS**. Press **A** on a row to open a dedicated 151-species browser. Hold Up or Down to scroll, use Left or Right to jump ten Pokédex entries, press A to select, and press B to cancel. The original compact mod-menu selectors remain available.
+
+Gold behavior is unchanged in this release.
+
 ## 1.0.1 — Gold Elm Dialogue and Presentation Fix
 
 Elm’s Lab now updates each starter ball’s selection prompt, preview picture, cry, and received-Pokémon name to use the configured species before the gift is added to the party. The initial player starter uses the configured species name in uppercase, matching the Gold presentation style.

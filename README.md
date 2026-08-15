@@ -6,13 +6,13 @@ Starter Picker lets players choose starters by original ball position in Gen 1 a
 
 ## Install
 
-Import the `starter_picker-1.0.1.zip` release archive through Gen 1 Recomp’s **Import mod .zip** action. The archive extracts directly to a `starter_picker/` folder containing `manifest.json` and `main.lua`.
+Import the `starter_picker-1.0.2.zip` release archive through Gen 1 Recomp’s **Import mod .zip** action. The archive extracts directly to a `starter_picker/` folder containing `manifest.json` and `main.lua`.
 
 ## Features
 
 The three starter selectors are live settings. Configure them before receiving a starter, or update the selector matching the player’s chosen ball later to rebuild the tracked player starter. The rival’s future counter-pick relationship remains tied to the ball positions, while player-only stat and held-item options never modify the rival’s DVs or held item.
 
-Gen 1 covers Oak’s Lab in Red and Blue with all 151 species, including Mew. Pokémon Yellow’s distinct Pikachu/Eevee sequence is intentionally unchanged.
+Gen 1 covers Oak’s Lab in Red and Blue with all 151 species, including Mew. **MAX PLAYER STARTER DVS** applies only to the player’s selected starter and now has both a post-gift and script-completion safeguard. For faster selection, open **START > OPTIONS** and choose **PICK LEFT BALL**, **PICK MIDDLE BALL**, or **PICK RIGHT BALL**. Press A to browse all 151 species, hold Up or Down to scroll, use Left or Right to jump ten entries, press A to confirm, or B to cancel. Pokémon Yellow’s distinct Pikachu/Eevee sequence is intentionally unchanged.
 
 ## Gold
 

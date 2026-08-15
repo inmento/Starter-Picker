@@ -448,14 +448,30 @@ return function(mod)
   end
 
   local function applyPostLabMaxDVs(game)
-    if isGen2(game) then return end
+    if isGen2(game) then return false end
     local flags = game and game.save and game.save.flags or {}
-    if not flags.EVENT_GOT_STARTER then return end
+    -- The player-selected ball is stored before the gift is constructed. It
+    -- remains a reliable starter marker even during the short window before
+    -- Oak's Lab commits EVENT_GOT_STARTER to the save.
+    if not flags.EVENT_GOT_STARTER and not mod.save:get(STARTER_SLOT_KEY) then return false end
 
     local mon = findTrackedStarter(game, mod.save:get(STARTER_SPECIES_KEY))
     if forceMaxDVs(game, mon) then
       mod.save:set(MAX_STARTER_DVS_APPLIED_KEY, true)
+      return true
     end
+    return false
+  end
+
+  local function applyPendingMaxDVs(game)
+    if isGen2(game) or not mod.save:get(PENDING_MAX_STARTER_DVS_KEY) then return false end
+    local mon = findTrackedStarter(game, mod.save:get(STARTER_SPECIES_KEY))
+    if forceMaxDVs(game, mon) then
+      mod.save:set(MAX_STARTER_DVS_APPLIED_KEY, true)
+      mod.save:set(PENDING_MAX_STARTER_DVS_KEY, nil)
+      return true
+    end
+    return false
   end
 
   local function applyPostLabSelection(game, slotName)
@@ -478,6 +494,9 @@ return function(mod)
 
   mod.events:on("game.ready", function(event)
     lastGame = (event and event.game) or lastGame or mod.game
+    if not isGen2(lastGame) and mod.options:get(MAX_STARTER_DVS_OPTION) == true then
+      applyPostLabMaxDVs(lastGame)
+    end
   end)
 
   mod.events:on("mod.options_changed", function(event)
@@ -510,16 +529,134 @@ return function(mod)
   -- The first screen after Oak's Lab's give command is the nickname prompt;
   -- by then the player mon has entered the party, so this applies DVs only to
   -- that marked gift and never enters the independent trainer.party path.
-  mod.events:on("screen.pushed", function()
-    if isGen2(lastGame or mod.game) then return end
-    if not mod.save:get(PENDING_MAX_STARTER_DVS_KEY) then return end
-    local game = lastGame or mod.game
-    local mon = findTrackedStarter(game, mod.save:get(STARTER_SPECIES_KEY))
-    if forceMaxDVs(game, mon) then
-      mod.save:set(MAX_STARTER_DVS_APPLIED_KEY, true)
+  if not isGen2() then
+    mod.events:on("screen.pushed", function()
+      applyPendingMaxDVs(lastGame or mod.game)
+    end)
+
+    -- Oak's Lab can reach the player starter through different presentation
+    -- paths. Script completion is the definitive post-gift boundary, so it is a
+    -- second chance to apply the pending player-only maximum DVs if a screen
+    -- transition was skipped or handled by another mod.
+    mod.events:on("script.ended", function(event)
+      local game = (event and event.ctx and event.ctx.game) or lastGame or mod.game
+      if event and event.completed == false then return end
+      applyPendingMaxDVs(game)
+    end)
+  end
+
+  -- The generic mod-manager choice control changes one entry per button press.
+  -- Gen 1 adds a compact browser under START > OPTIONS instead: holding Up or
+  -- Down repeats, Left/Right jump ten Pokédex entries, A confirms, and B
+  -- cancels. Gold does not register this UI hook.
+  local GEN1_CHOICE_INDEX = {}
+  if not isGen2() then
+    for index, row in ipairs(CHOICES) do GEN1_CHOICE_INDEX[row[2]] = index end
+  end
+
+  local function setGen1PickerOption(game, key, value)
+    if not (game and game.save) then return false end
+    game.save.options = game.save.options or {}
+    game.save.options.modOptions = game.save.options.modOptions or {}
+    game.save.options.modOptions[mod.id] = game.save.options.modOptions[mod.id] or {}
+    game.save.options.modOptions[mod.id][key] = value
+
+    local loader = game.mods
+    if loader then
+      loader.modOptions = loader.modOptions or {}
+      loader.modOptions[mod.id] = loader.modOptions[mod.id] or {}
+      loader.modOptions[mod.id][key] = value
     end
-    mod.save:set(PENDING_MAX_STARTER_DVS_KEY, nil)
-  end)
+    if game.writeOptions then game:writeOptions() end
+    if loader and loader.events then
+      loader.events:emit("mod.options_changed", { mod = mod.id, key = key, value = value })
+    else
+      local slotName = SLOT_NAME_BY_OPTION[key]
+      if slotName then applyPostLabSelection(game, slotName) end
+    end
+    return true
+  end
+
+  local function openGen1SpeciesBrowser(game, slotName)
+    if isGen2(game) or not (game and game.stack and game.stack.push) then return end
+    local slot = GEN1_SLOTS[slotName]
+    if not slot then return end
+    local Font = require("src.render.Font")
+    local Theme = require("src.ui.Theme")
+    local index = GEN1_CHOICE_INDEX[selectedSpecies(game, slot)] or 1
+    local screen = { game = game, isOpaque = true, repeatDir = nil, repeatLeft = 0 }
+
+    local function move(dir)
+      index = ((index - 1 + dir) % #CHOICES) + 1
+    end
+
+    function screen:update(dt)
+      local input = self.game.input
+      local dir = input:wasPressed("up") and -1 or (input:wasPressed("down") and 1 or nil)
+      if dir then
+        move(dir)
+        self.repeatDir, self.repeatLeft = dir, 0.35
+      elseif self.repeatDir and input:isDown(self.repeatDir < 0 and "up" or "down") then
+        self.repeatLeft = self.repeatLeft - (dt or 0)
+        while self.repeatLeft <= 0 do
+          move(self.repeatDir)
+          self.repeatLeft = self.repeatLeft + 0.075
+        end
+      else
+        self.repeatDir, self.repeatLeft = nil, 0
+      end
+
+      if input:wasPressed("left") then
+        move(-10)
+      elseif input:wasPressed("right") then
+        move(10)
+      elseif input:wasPressed("a") then
+        setGen1PickerOption(self.game, slot.option, CHOICES[index][2])
+        self.game.stack:pop()
+      elseif input:wasPressed("b") then
+        self.game.stack:pop()
+      end
+    end
+
+    function screen:draw()
+      Font.drawBox(0, 0, 20, 18)
+      love.graphics.setColor(0, 0, 0, 1)
+      Font.draw("PICK " .. slotName .. " BALL", 16, 8)
+      local first = math.max(1, math.min(#CHOICES - 6, index - 3))
+      for row = 0, 6 do
+        local choice = CHOICES[first + row]
+        if choice then Font.draw(choice[1], 24, (3 + row * 2) * 8) end
+      end
+      Font.drawCode(Theme.cursor, 8, (3 + (index - first) * 2) * 8)
+      Font.draw("U/D:SCROLL  L/R:10", 8, 128)
+      Font.draw("A:SELECT  B:CANCEL", 8, 136)
+      love.graphics.setColor(1, 1, 1, 1)
+    end
+
+    game.stack:push(screen)
+  end
+
+  if not isGen2() then
+    mod.hooks:wrap("ui.options.rows", function(next, game, rows)
+      rows = next(game, rows)
+      local out = {}
+      for _, row in ipairs(rows or {}) do out[#out + 1] = row end
+      for _, slotName in ipairs({ "LEFT", "MIDDLE", "RIGHT" }) do
+        local slot = GEN1_SLOTS[slotName]
+        out[#out + 1] = {
+          id = "starter_picker_" .. slotName:lower(),
+          label = "PICK " .. slotName .. " BALL",
+          value = function(currentGame)
+            local species = selectedSpecies(currentGame, slot)
+            local choice = CHOICES[GEN1_CHOICE_INDEX[species] or 1]
+            return choice and choice[1] or tostring(species)
+          end,
+          activate = function(currentGame) openGen1SpeciesBrowser(currentGame, slotName) end,
+        }
+      end
+      return out
+    end)
+  end
 
   local function ballX(objectId)
     if objectId == "OAKSLAB_CHARMANDER_POKE_BALL" then return 6 end
