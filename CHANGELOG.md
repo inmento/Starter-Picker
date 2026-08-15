@@ -1,24 +1,45 @@
 # Changelog
 
-All notable changes to Starter Picker are documented in this file.
+## 1.0.0 — Full Release
 
-## [0.0.4] - 2026-08-14
+Starter Picker 1.0.0 lets players choose starters by their original ball position while preserving the game’s rival counter-pick logic. The selected player ball remains the source of truth in both Gen 1 and Gold, and selections can be adjusted from the mod options before the starter is received.
 
-### Added
+### Core features
 
-- Explicit interoperability with the authorized **Gen 2 Randomizer** (`gen2_randomizer`). Starter Picker now recognizes only confirmed **LOGIC** and **NO LOGIC** setups as active, while **VANILLA** and unconfirmed setups remain inactive.
-- Deterministic final-pass handling for Gold’s Elm’s Lab `givepoke` command and rival-party projection. An active Gen 2 Randomizer can perform its own transform first, then the player’s named Starter Picker selection is applied as the final starter result.
-- **RANDOM (WEIGHTED)** for **STARTER HELD ITEM (GOLD)**. The save stores one generated player-starter result: it may be no item, a low-value/inert tossable item, an ordinary useful held item, or a premium held item, with the outcomes weighted toward no/inert results.
-- **SHINY PLAYER STARTER**, which applies only to the chosen player starter. It sets Defense, Speed, and Special DVs to 10 and selects Attack from the valid shiny values 2, 3, 6, 7, 10, 11, 14, or 15. It takes precedence over the maximum-DV option and never alters the rival’s DVs or held item.
-- Weighted-item safeguards excluding key items, HMs, non-tossable records, invalid records, and added items for an originally itemless native starter command.
-- Isolated Gold harness coverage for Gen 2 Randomizer LOGIC/NO LOGIC/VANILLA state detection, final species precedence, valid player-only shiny spreads, weighted-item persistence, no-item outcomes, itemless native gifts, and rival item/DV isolation.
+| Feature | What it does |
+|---|---|
+| Ball-position selection | Each original starter ball has its own named selector. |
+| Live configuration | Starter settings are applied from the current option state rather than being locked when a save first loads. |
+| Rival counter-pick | The rival continues to choose the configured counter-ball relationship. |
+| Player-only stat options | DV settings apply only to the player’s selected starter. Rival DVs remain independent. |
+| Randomizer interoperability | Starter Picker recognizes supported Gen 1 and Gold Randomizer starter modes and keeps the player’s named ball selection authoritative. |
 
-### Changed
+### Gen 1 support
 
-- Updated Starter Picker’s internal source header, manifest, README installation filename, and distribution version to **0.0.4**.
-- Extended Wes_Kestis credit to cover the authorized Gen 2 Randomizer compatibility review.
+Gen 1 supports the three Oak’s Lab balls and the complete 151-species selection set, including Mew. The original ball flags, object hiding, rival flow, and later rival-party structure remain intact.
 
-### Known limitations
+The **MAX PLAYER STARTER DVS** option gives only the player’s chosen Gen 1 starter maximum DVs. It does not modify the rival’s DVs.
 
-- Gold support, including this v0.0.4 compatibility path, has passed offline syntax and isolated harness validation but remains untested in a player-imported Gold save. Back up a save before testing.
+### Gold support
 
+Gold support covers Elm’s Lab and the complete 251-species selection range. Each of Cyndaquil, Totodile, and Chikorita has an independent ball selector, while the player’s selected ball remains compatible with Gold’s rival counter-pick flow.
+
+| Gold option | Effect |
+|---|---|
+| **CYNDAQUIL BALL** | Chooses the species in Elm’s left ball. |
+| **TOTODILE BALL** | Chooses the species in Elm’s middle ball. |
+| **CHIKORITA BALL** | Chooses the species in Elm’s right ball. |
+| **PLAYER DV MODE** | Preserves native DVs or applies Max, Random, or Shiny DVs to the player starter only. |
+| **HELD ITEM** | Preserves the native item, selects a named item, or uses a saved weighted random result. |
+
+Shiny mode uses a legal Gen 2 shiny spread: Defense, Speed, and Special DVs are set to 10 and Attack is selected from the valid shiny values. Max, Random, and Shiny modes never alter rival DVs.
+
+### Gold held items and Randomizer compatibility
+
+Gold starter held items support Vanilla, named, and weighted results. Weighted results are stored per save and may deliberately be no item, a lower-value result, a useful held item, or a premium held item. Unsafe key items, HMs, non-tossable items, and invalid records remain excluded.
+
+Starter Picker supports the authorized Gen 1 and Gold Randomizer compatibility paths. Confirmed Randomizer starter modes can perform their own setup while the player’s explicit Starter Picker ball selection remains the final player-starter choice.
+
+### Compatibility and quality
+
+This release targets Mod API 2 and supports both Gen 1 and Gold. Mobile labels are compact, selected starters retain normal party behavior, and the release archive contains only mod source, metadata, documentation, credits, and license material.

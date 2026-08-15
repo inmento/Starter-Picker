@@ -1,5 +1,4 @@
 -- Starter Picker
--- Version 0.0.4
 -- Gen 1 Recomp mod API 2
 --
 -- The three Oak's Lab ball positions retain their native relationship:
@@ -18,50 +17,60 @@ return function(mod)
       option = "charmander_ball", default = "CHARMANDER",
       ballText = "TEXT_OAKSLAB_CHARMANDER_POKE_BALL",
       ballObject = "OAKSLAB_CHARMANDER_POKE_BALL",
-      choseFlag = "EVENT_CHOSE_CHARMANDER", rivalSlot = "MIDDLE",
+      choseFlag = "EVENT_CHOSE_CHARMANDER",
+      rivalSlot = "MIDDLE",
       rivalBallObject = "OAKSLAB_SQUIRTLE_POKE_BALL",
     },
     MIDDLE = {
       option = "squirtle_ball", default = "SQUIRTLE",
       ballText = "TEXT_OAKSLAB_SQUIRTLE_POKE_BALL",
       ballObject = "OAKSLAB_SQUIRTLE_POKE_BALL",
-      choseFlag = "EVENT_CHOSE_SQUIRTLE", rivalSlot = "RIGHT",
+      choseFlag = "EVENT_CHOSE_SQUIRTLE",
+      rivalSlot = "RIGHT",
       rivalBallObject = "OAKSLAB_BULBASAUR_POKE_BALL",
     },
     RIGHT = {
       option = "bulbasaur_ball", default = "BULBASAUR",
       ballText = "TEXT_OAKSLAB_BULBASAUR_POKE_BALL",
       ballObject = "OAKSLAB_BULBASAUR_POKE_BALL",
-      choseFlag = "EVENT_CHOSE_BULBASAUR", rivalSlot = "LEFT",
+      choseFlag = "EVENT_CHOSE_BULBASAUR",
+      rivalSlot = "LEFT",
       rivalBallObject = "OAKSLAB_CHARMANDER_POKE_BALL",
     },
   }
-  -- Elm's Lab uses the same left/middle/right counter-pick relationship, but
-  -- Gold's objects are indices 3/4/5 and its native starters are Gen 2's trio.
-  local GEN2_SLOTS = {
-    LEFT = { option = "cyndaquil_ball", default = "CYNDAQUIL", ballObjectIndex = 3, scriptKey = "60:40c6", rivalSlot = "MIDDLE" },
-    MIDDLE = { option = "totodile_ball", default = "TOTODILE", ballObjectIndex = 4, scriptKey = "60:4108", rivalSlot = "RIGHT" },
-    RIGHT = { option = "chikorita_ball", default = "CHIKORITA", ballObjectIndex = 5, scriptKey = "60:4144", rivalSlot = "LEFT" },
+
+  local GOLD_SLOTS = {
+    LEFT = {
+      option = "cyndaquil_ball", default = "CYNDAQUIL", objectIndex = 3,
+      scriptKey = "60:40c6", nativeSpeciesIndex = 155, rivalSlot = "MIDDLE",
+    },
+    MIDDLE = {
+      option = "totodile_ball", default = "TOTODILE", objectIndex = 4,
+      scriptKey = "60:4108", nativeSpeciesIndex = 158, rivalSlot = "RIGHT",
+    },
+    RIGHT = {
+      option = "chikorita_ball", default = "CHIKORITA", objectIndex = 5,
+      scriptKey = "60:4144", nativeSpeciesIndex = 152, rivalSlot = "LEFT",
+    },
   }
-  local SLOTS = isGen2() and GEN2_SLOTS or GEN1_SLOTS
+
+  local SLOTS = isGen2() and GOLD_SLOTS or GEN1_SLOTS
 
   local PENDING_STARTER_SLOT_KEY = "pending_starter_slot"
   local STARTER_SLOT_KEY = "received_starter_slot"
   local STARTER_SPECIES_KEY = "received_starter_species"
-  local GEN1_RANDOMIZER_ID = "gen1_randomizer"
-  local GEN2_RANDOMIZER_ID = "gen2_randomizer"
-  local GEN1_RANDOMIZER_OVERRIDE_KEY = "gen1_randomizer_starter_override_active"
-  local GEN2_RANDOMIZER_OVERRIDE_KEY = "gen2_randomizer_starter_override_active"
-  local WEIGHTED_HELD_ITEM_INDEX_KEY = "gold_weighted_starter_held_item_index"
-  local WEIGHTED_HELD_ITEM_SEED_KEY = "gold_weighted_starter_held_item_seed"
+  local RANDOMIZER_ID = isGen2() and "gen2_randomizer" or "gen1_randomizer"
+  local RANDOMIZER_OVERRIDE_KEY = isGen2()
+    and "gen2_randomizer_starter_override_active"
+    or "gen1_randomizer_starter_override_active"
   local MAX_STARTER_DVS_OPTION = "max_starter_dvs"
-  local SHINY_STARTER_OPTION = "shiny_player_starter"
   local PENDING_MAX_STARTER_DVS_KEY = "pending_max_starter_dvs"
-  local PENDING_SHINY_STARTER_KEY = "pending_shiny_player_starter"
   local MAX_STARTER_DVS_APPLIED_KEY = "starter_max_dvs_applied"
-  local SHINY_STARTER_APPLIED_KEY = "starter_shiny_dvs_applied"
-  local SHINY_ATTACK_DVS = { 2, 3, 6, 7, 10, 11, 14, 15 }
+  local GOLD_RECEIVED_KEY = "gold_received_starter"
+  local GOLD_ITEM_KEY = "gold_starter_item"
+  local GOLD_DVS_KEY = "gold_starter_dvs"
   local lastGame = mod.game
+  local findTrackedStarter
   local SLOT_NAME_BY_OPTION = {
     [SLOTS.LEFT.option] = "LEFT",
     [SLOTS.MIDDLE.option] = "MIDDLE",
@@ -71,8 +80,6 @@ return function(mod)
   local function choiceRows()
     local rows = {}
     for speciesId, pokemon in mod.content.pokemon:each() do
-      -- Use the standard dex range for the active generation: 151 on Gen 1
-      -- and 251 on Gold. Species added by unrelated content mods stay out.
       local maxDex = isGen2() and 251 or 151
       if type(pokemon.dex) == "number" and pokemon.dex >= 1 and pokemon.dex <= maxDex then
         rows[#rows + 1] = { string.format("%03d %s", pokemon.dex, pokemon.name), speciesId }
@@ -83,63 +90,69 @@ return function(mod)
   end
 
   local CHOICES = choiceRows()
-  local HELD_ITEM_CHOICES = {
-    { "VANILLA", "VANILLA" },
-    { "RANDOM (WEIGHTED)", "RANDOM_WEIGHTED" },
-  }
-  if isGen2() then
+  local GOLD_DV_MODE_OPTION = "gold_player_dv_mode"
+  local GOLD_HELD_ITEM_OPTION = "gold_held_item"
+
+  local function goldHeldItemChoices()
+    local rows = {
+      { "VANILLA", "VANILLA" },
+      { "RANDOM WEIGHTED", "RANDOM" },
+    }
+    if not (isGen2() and mod.content.items and mod.content.items.each) then return rows end
     for itemId, item in mod.content.items:each() do
-      if item and item.heldEffect and item.heldEffect ~= "HELD_NONE"
-        and item.canToss ~= false and item.pocket ~= "KEY_ITEM"
-        and item.machine == nil then
-        HELD_ITEM_CHOICES[#HELD_ITEM_CHOICES + 1] = { item.name or itemId, itemId }
+      if type(itemId) == "string" and type(item) == "table" and item.index
+        and item.canToss ~= false and item.keyItem ~= true
+        and item.pocket ~= "KEY_ITEM" then
+        rows[#rows + 1] = { string.format("%03d %s", item.index, item.name or itemId), itemId }
       end
     end
-    table.sort(HELD_ITEM_CHOICES, function(a, b) return a[1] < b[1] end)
+    table.sort(rows, function(a, b)
+      if a[2] == "VANILLA" then return true end
+      if b[2] == "VANILLA" then return false end
+      if a[2] == "RANDOM" then return true end
+      if b[2] == "RANDOM" then return false end
+      return a[1] < b[1]
+    end)
+    return rows
   end
 
-  mod.options:define({
+  local optionDefs = {
     {
       key = SLOTS.LEFT.option,
-      label = SLOTS.LEFT.default .. " BALL",
-      type = "choice",
-      default = SLOTS.LEFT.default,
-      choices = CHOICES,
+      label = isGen2() and "CYNDAQUIL BALL" or "CHARMANDER BALL",
+      type = "choice", default = SLOTS.LEFT.default, choices = CHOICES,
     },
     {
       key = SLOTS.MIDDLE.option,
-      label = SLOTS.MIDDLE.default .. " BALL",
-      type = "choice",
-      default = SLOTS.MIDDLE.default,
-      choices = CHOICES,
+      label = isGen2() and "TOTODILE BALL" or "SQUIRTLE BALL",
+      type = "choice", default = SLOTS.MIDDLE.default, choices = CHOICES,
     },
     {
       key = SLOTS.RIGHT.option,
-      label = SLOTS.RIGHT.default .. " BALL",
-      type = "choice",
-      default = SLOTS.RIGHT.default,
-      choices = CHOICES,
+      label = isGen2() and "CHIKORITA BALL" or "BULBASAUR BALL",
+      type = "choice", default = SLOTS.RIGHT.default, choices = CHOICES,
     },
-    {
-      key = MAX_STARTER_DVS_OPTION,
-      label = "MAX PLAYER STARTER DVS",
-      type = "toggle",
-      default = false,
-    },
-    {
-      key = SHINY_STARTER_OPTION,
-      label = "SHINY PLAYER STARTER",
-      type = "toggle",
-      default = false,
-    },
-    {
-      key = "starter_held_item",
-      label = "STARTER HELD ITEM (GOLD)",
-      type = "choice",
-      default = "VANILLA",
-      choices = HELD_ITEM_CHOICES,
-    },
-  })
+  }
+  if isGen2() then
+    optionDefs[#optionDefs + 1] = {
+      key = GOLD_DV_MODE_OPTION, label = "PLAYER DV MODE", type = "choice",
+      default = "PRESERVE",
+      choices = {
+        { "PRESERVE", "PRESERVE" }, { "MAX", "MAX" },
+        { "RANDOM", "RANDOM" }, { "SHINY", "SHINY" },
+      },
+    }
+    optionDefs[#optionDefs + 1] = {
+      key = GOLD_HELD_ITEM_OPTION, label = "HELD ITEM", type = "choice",
+      default = "VANILLA", choices = goldHeldItemChoices(),
+    }
+  else
+    optionDefs[#optionDefs + 1] = {
+      key = MAX_STARTER_DVS_OPTION, label = "MAX PLAYER STARTER DVS",
+      type = "toggle", default = false,
+    }
+  end
+  mod.options:define(optionDefs)
 
   local function validSpecies(game, speciesId)
     return type(speciesId) == "string"
@@ -153,158 +166,24 @@ return function(mod)
     return slot.default
   end
 
-  local function findLoadedMod(id)
-    if type(mod.find) ~= "function" then return nil end
-
-    -- API 2 exposes mod.find(otherId). Keep a guarded legacy-shape fallback
-    -- so the compatibility check remains harmless on older host builds.
-    local ok, handle = pcall(mod.find, id)
-    if ok and handle ~= nil then return handle end
-    ok, handle = pcall(mod.find, mod, id)
-    if ok then return handle end
-    return nil
-  end
-
-  -- Both supported Randomizers store their confirmed setup in their own
-  -- save.modData table. Installation alone is not enough: VANILLA and an
-  -- unconfirmed setup deliberately leave the Randomizer inactive.
-  local function randomizerStarterRandomizationActive(game, randomizerId)
+  -- Gen 1 Randomizer randomizes Oak's Lab starters only after its setup has
+  -- been confirmed and its mode is LOGIC or NO LOGIC. Read its per-save state
+  -- rather than assuming installation alone means starter randomization.
+  local function randomizerStarterRandomizationActive(game)
     local state = game and game.save and game.save.modData
-      and game.save.modData[randomizerId]
-    if type(state) ~= "table" or findLoadedMod(randomizerId) == nil then
-      return false
+      and game.save.modData[RANDOMIZER_ID]
+    if type(state) ~= "table" then return false end
+
+    local installed = false
+    if type(mod.find) == "function" then
+      local ok, handle = pcall(mod.find, mod, RANDOMIZER_ID)
+      installed = ok and handle ~= nil
     end
+    if not installed then return false end
 
     local mode = tostring(state.randomizer_mode or "vanilla")
     return state.startup_config_confirmed == true
       and (mode == "logic" or mode == "nologic")
-  end
-
-  local function stableHash(text, base)
-    local h = math.floor(tonumber(base) or 17) % 2147483646
-    if h <= 0 then h = 17 end
-    text = tostring(text or "")
-    for i = 1, #text do
-      h = (h * 48271 + text:byte(i) + i * 97) % 2147483647
-      if h == 0 then h = 17 end
-    end
-    return h
-  end
-
-  local function newWeightedHeldItemSeed(game, slotName)
-    local stored = tonumber(mod.save:get(WEIGHTED_HELD_ITEM_SEED_KEY))
-    if stored and stored > 0 then return math.floor(stored) end
-
-    local randomizerState = game and game.save and game.save.modData
-      and game.save.modData[GEN2_RANDOMIZER_ID]
-    local source = tonumber(randomizerState and randomizerState.seed)
-    if not source or source <= 0 then
-      local now, clock, timer = 1, 0, 0
-      if type(os) == "table" and type(os.time) == "function" then
-        local ok, value = pcall(os.time)
-        if ok and type(value) == "number" then now = value end
-      end
-      if type(os) == "table" and type(os.clock) == "function" then
-        local ok, value = pcall(os.clock)
-        if ok and type(value) == "number" then clock = value end
-      end
-      if type(love) == "table" and type(love.timer) == "table"
-        and type(love.timer.getTime) == "function" then
-        local ok, value = pcall(love.timer.getTime)
-        if ok and type(value) == "number" then timer = value end
-      end
-      source = math.floor((now + clock * 1000 + timer * 1000000) % 2147483646) + 1
-    end
-
-    local seed = stableHash("starter-picker:weighted-held:" .. tostring(slotName), source)
-    mod.save:set(WEIGHTED_HELD_ITEM_SEED_KEY, seed)
-    return seed
-  end
-
-  local function generatedHeldItemPools(game)
-    local inert, useful, premium = {}, {}, {}
-    local records = game and game.data and game.data.items or {}
-    for itemId, item in pairs(records) do
-      local index = tonumber(item and item.index)
-      local safe = item and index and index > 0
-        and item.canToss ~= false and item.pocket ~= "KEY_ITEM"
-        and item.machine == nil
-      if safe then
-        local row = { id = itemId, index = index }
-        if item.heldEffect and item.heldEffect ~= "HELD_NONE" then
-          if (tonumber(item.price) or 0) >= 3000 then
-            premium[#premium + 1] = row
-          else
-            useful[#useful + 1] = row
-          end
-        else
-          inert[#inert + 1] = row
-        end
-      end
-    end
-    local function sortRows(rows)
-      table.sort(rows, function(a, b) return tostring(a.id) < tostring(b.id) end)
-    end
-    sortRows(inert); sortRows(useful); sortRows(premium)
-    return inert, useful, premium
-  end
-
-  local function firstNonEmptyPool(...)
-    for i = 1, select("#", ...) do
-      local pool = select(i, ...)
-      if type(pool) == "table" and #pool > 0 then return pool end
-    end
-    return nil
-  end
-
-  local function chooseWeightedHeldItemIndex(game, slotName, vanillaIndex)
-    local cached = mod.save:get(WEIGHTED_HELD_ITEM_INDEX_KEY)
-    if type(cached) == "number" and cached >= 0 then return math.floor(cached) end
-
-    -- Never add a held item to a gift that was originally itemless. Gold's
-    -- native Elm starters carry a Berry, but this guard keeps the behavior
-    -- safe if a future game/version uses an itemless starter command.
-    local vanilla = tonumber(vanillaIndex) or 0
-    if vanilla <= 0 then
-      mod.save:set(WEIGHTED_HELD_ITEM_INDEX_KEY, 0)
-      return 0
-    end
-
-    local inert, useful, premium = generatedHeldItemPools(game)
-    local seed = newWeightedHeldItemSeed(game, slotName)
-    local roll = stableHash("starter-held-roll:" .. tostring(slotName) .. ":" .. tostring(vanilla), seed) % 100
-    local pool
-    if roll < 40 then
-      mod.save:set(WEIGHTED_HELD_ITEM_INDEX_KEY, 0)
-      return 0 -- 40%: no held item
-    elseif roll < 82 then
-      pool = firstNonEmptyPool(inert, useful, premium) -- 42%: inert/low-value item
-    elseif roll < 97 then
-      pool = firstNonEmptyPool(useful, inert, premium) -- 15%: ordinary useful held item
-    else
-      pool = firstNonEmptyPool(premium, useful, inert) -- 3%: premium useful held item
-    end
-    if type(pool) ~= "table" or #pool == 0 then return vanilla end
-
-    local choice = pool[(stableHash("starter-held-pick:" .. tostring(slotName) .. ":" .. tostring(roll), seed) % #pool) + 1]
-    local index = choice and choice.index or vanilla
-    mod.save:set(WEIGHTED_HELD_ITEM_INDEX_KEY, index)
-    return index
-  end
-
-  local function selectedStarterHeldItemIndex(game, slotName, vanillaIndex)
-    if not isGen2(game) then return vanillaIndex end
-    local selected = mod.options:get("starter_held_item")
-    if selected == nil or selected == "VANILLA" then return vanillaIndex end
-    if selected == "RANDOM_WEIGHTED" then
-      return chooseWeightedHeldItemIndex(game, slotName, vanillaIndex)
-    end
-    local item = game and game.data and game.data.items and game.data.items[selected]
-    if item and item.index ~= nil and item.canToss ~= false
-      and item.pocket ~= "KEY_ITEM" and item.machine == nil then
-      return item.index
-    end
-    return vanillaIndex
   end
 
   local function chosenStarterSlot(flags)
@@ -315,16 +194,16 @@ return function(mod)
   end
 
   local function expForLevel(growthRate, level)
-    if growthRate == "SLIGHTLY_FAST" or growthRate == "GROWTH_SLIGHTLY_FAST" then
+    if growthRate == "SLIGHTLY_FAST" then
       return math.max(0, math.floor((3 * level ^ 3) / 4) + 10 * level ^ 2 - 30)
-    elseif growthRate == "SLIGHTLY_SLOW" or growthRate == "GROWTH_SLIGHTLY_SLOW" then
+    elseif growthRate == "SLIGHTLY_SLOW" then
       return math.max(0, math.floor((3 * level ^ 3) / 4) + 20 * level ^ 2 - 70)
-    elseif growthRate == "MEDIUM_SLOW" or growthRate == "GROWTH_MEDIUM_SLOW" then
+    elseif growthRate == "MEDIUM_SLOW" then
       return math.max(0, math.floor((6 * level ^ 3) / 5) - 15 * level ^ 2
         + 100 * level - 140)
-    elseif growthRate == "FAST" or growthRate == "GROWTH_FAST" then
+    elseif growthRate == "FAST" then
       return math.floor((4 * level ^ 3) / 5)
-    elseif growthRate == "SLOW" or growthRate == "GROWTH_SLOW" then
+    elseif growthRate == "SLOW" then
       return math.floor((5 * level ^ 3) / 4)
     end
     return level ^ 3 -- MEDIUM_FAST and a safe fallback
@@ -332,18 +211,12 @@ return function(mod)
 
   local function recalculatedStats(speciesDef, level, dvs, statExp)
     local stats = {}
-    local baseStats = speciesDef.baseStats or {}
-    local keys = baseStats.specialAttack and
-      { "hp", "attack", "defense", "speed", "specialAttack", "specialDefense" }
-      or { "hp", "attack", "defense", "speed", "special" }
+    local keys = { "hp", "attack", "defense", "speed", "special" }
     for _, key in ipairs(keys) do
-      local base = baseStats[key] or 1
-      -- Gold stores one Special DV for both split Special stats.
-      local dvKey = (key == "specialAttack" or key == "specialDefense") and "special" or key
-      local dv = (dvs and dvs[dvKey]) or 0
-      local expKey = (key == "specialAttack" or key == "specialDefense") and "special" or key
+      local base = (speciesDef.baseStats and speciesDef.baseStats[key]) or 1
+      local dv = (dvs and dvs[key]) or 0
       local ev = math.floor(math.min(255,
-        math.ceil(math.sqrt((statExp and (statExp[expKey] or statExp[key])) or 0))) / 4)
+        math.ceil(math.sqrt((statExp and statExp[key]) or 0))) / 4)
       local value = math.floor(((base + dv) * 2 + ev) * level / 100)
       stats[key] = value + (key == "hp" and level + 10 or 5)
     end
@@ -372,55 +245,117 @@ return function(mod)
     return true
   end
 
-  local function shinyAttackDV(mon)
-    local current = tonumber(mon and mon.dvs and mon.dvs.attack)
-    for _, candidate in ipairs(SHINY_ATTACK_DVS) do
-      if current == candidate then return candidate end
+  local function copyDVs(dvs)
+    local out = {}
+    for _, key in ipairs({ "attack", "defense", "speed", "special", "hp" }) do
+      if dvs and dvs[key] ~= nil then out[key] = dvs[key] end
     end
-    -- Any listed Attack DV is a valid Gen 2 shiny combination when Defense,
-    -- Speed, and Special are 10. Select a stable value so the same player
-    -- starter does not change spread when the option is re-applied.
-    local index = (stableHash("shiny-starter:" .. tostring(mon and mon.species)
-      .. ":" .. tostring(mon and mon.level), 17) % #SHINY_ATTACK_DVS) + 1
-    return SHINY_ATTACK_DVS[index]
+    return out
   end
 
-  local function forceShinyDVs(game, mon)
-    local speciesDef = game and game.data and game.data.pokemon
-      and mon and game.data.pokemon[mon.species]
-    if type(mon) ~= "table" or not speciesDef then return false end
+  local function randomDv()
+    if love and love.math and love.math.random then return love.math.random(0, 15) end
+    return math.random(0, 15)
+  end
 
-    local level = math.max(1, math.min(100, tonumber(mon.level) or 5))
-    local oldMaxHp = mon.stats and mon.stats.hp or mon.hp or 1
-    local hpLost = math.max(0, oldMaxHp - (tonumber(mon.hp) or oldMaxHp))
-    local attack = shinyAttackDV(mon)
-    -- In Gen 1/2, HP DV is derived from the low bits of Attack, Defense,
-    -- Speed, and Special. With the latter three set to 10, only Attack's
-    -- low bit contributes: 0 for even valid values and 8 for odd values.
-    local hp = (attack % 2 == 1) and 8 or 0
-    mon.statExp = mon.statExp
-      or { hp = 0, attack = 0, defense = 0, speed = 0, special = 0 }
-    mon.dvs = { hp = hp, attack = attack, defense = 10, speed = 10, special = 10 }
-    mon.stats = recalculatedStats(speciesDef, level, mon.dvs, mon.statExp)
-    mon.hp = math.max(1, mon.stats.hp - hpLost)
+  local function goldDvMode()
+    local mode = mod.options:get("player_starter_dv_mode") or mod.options:get(GOLD_DV_MODE_OPTION)
+    if mode == "MAX" or mode == "RANDOM" or mode == "SHINY" then return mode end
+    return "PRESERVE"
+  end
+
+  local function goldDVs(existing)
+    local mode = goldDvMode()
+    if mode == "PRESERVE" then return copyDVs(existing) end
+    if mode == "MAX" then return { attack = 15, defense = 15, speed = 15, special = 15 } end
+    if mode == "SHINY" then
+      local attack = ({ 2, 3, 6, 7, 10, 11, 14, 15 })[randomDv() % 8 + 1]
+      return { attack = attack, defense = 10, speed = 10, special = 10 }
+    end
+    local saved = mod.save:get(GOLD_DVS_KEY)
+    if type(saved) == "table" then return copyDVs(saved) end
+    saved = { attack = randomDv(), defense = randomDv(), speed = randomDv(), special = randomDv() }
+    mod.save:set(GOLD_DVS_KEY, saved)
+    return copyDVs(saved)
+  end
+
+  local function goldItemIndex(game, itemId)
+    for id, item in pairs(game and game.data and game.data.items or {}) do
+      if id == itemId and type(item) == "table" then return item.index end
+    end
+    return nil
+  end
+
+  local function goldHeldItem(game, nativeItem)
+    local selected = mod.options:get("starter_held_item") or mod.options:get(GOLD_HELD_ITEM_OPTION)
+    if selected == "VANILLA" or selected == nil then return nativeItem end
+    if selected ~= "RANDOM" and goldItemIndex(game, selected) then return selected end
+
+    local saved = mod.save:get(GOLD_ITEM_KEY)
+    if saved == "NONE" then return nil end
+    if goldItemIndex(game, saved) then return saved end
+    if randomDv() < 6 then
+      mod.save:set(GOLD_ITEM_KEY, "NONE")
+      return nil
+    end
+
+    local pool = {}
+    for itemId, item in pairs(game and game.data and game.data.items or {}) do
+      if type(itemId) == "string" and type(item) == "table" and item.index
+        and item.canToss ~= false and item.keyItem ~= true
+        and item.pocket ~= "KEY_ITEM" then
+        pool[#pool + 1] = itemId
+      end
+    end
+    table.sort(pool)
+    if #pool == 0 then return nativeItem end
+    local choice = pool[randomDv() % #pool + 1]
+    mod.save:set(GOLD_ITEM_KEY, choice)
+    return choice
+  end
+
+  local function goldSlotForScript(ctx)
+    if not (ctx and ctx.generation == 2 and ctx.scriptKey) then return nil end
+    for slotName, slot in pairs(GOLD_SLOTS) do
+      if ctx.scriptKey == slot.scriptKey then return slotName end
+    end
+    return nil
+  end
+
+  local function rebuildGoldStarter(game, mon, slotName)
+    if not (isGen2(game) and type(mon) == "table" and GOLD_SLOTS[slotName]) then return false end
+    local Mon = require("src.battle.gen2.Mon")
+    local slot = GOLD_SLOTS[slotName]
+    local species = selectedSpecies(game, slot)
+    local old = {
+      ot = mon.ot, otName = mon.otName, otId = mon.otId, nickname = mon.nickname,
+      happiness = mon.happiness, pokerus = mon.pokerus,
+    }
+    local replacement = Mon.new(game.data, species, mon.level or 5, {
+      dvs = goldDVs(mon.dvs), item = goldHeldItem(game, mon.item),
+      nickname = old.nickname, happiness = old.happiness, pokerus = old.pokerus,
+    })
+    if not replacement then return false end
+    for key in pairs(mon) do mon[key] = nil end
+    for key, value in pairs(replacement) do mon[key] = value end
+    mon.ot, mon.otName, mon.otId = old.ot, old.otName, old.otId
+    Mon.refreshStats(mon, game.data)
+    local dex = game.save and game.save.pokedex
+    if dex then
+      dex.seen, dex.caught = dex.seen or {}, dex.caught or {}
+      dex.seen[species], dex.caught[species] = true, true
+    end
+    mod.save:set(STARTER_SLOT_KEY, slotName)
+    mod.save:set(STARTER_SPECIES_KEY, species)
+    mod.save:set(GOLD_RECEIVED_KEY, true)
     return true
   end
 
-  local function applyConfiguredPlayerDVs(game, mon)
-    if mod.options:get(SHINY_STARTER_OPTION) == true then
-      if forceShinyDVs(game, mon) then
-        mod.save:set(SHINY_STARTER_APPLIED_KEY, true)
-        mod.save:set(MAX_STARTER_DVS_APPLIED_KEY, nil)
-        return true
-      end
-    elseif mod.options:get(MAX_STARTER_DVS_OPTION) == true then
-      if forceMaxDVs(game, mon) then
-        mod.save:set(MAX_STARTER_DVS_APPLIED_KEY, true)
-        mod.save:set(SHINY_STARTER_APPLIED_KEY, nil)
-        return true
-      end
-    end
-    return false
+  local function applyGoldLiveSettings(game)
+    if not (isGen2(game) and mod.save:get(GOLD_RECEIVED_KEY)) then return end
+    local slotName = mod.save:get(STARTER_SLOT_KEY)
+    local mon = findTrackedStarter(game, mod.save:get(STARTER_SPECIES_KEY))
+    if slotName and mon then rebuildGoldStarter(game, mon, slotName) end
   end
 
   local function movesAtLevel(game, speciesDef, level)
@@ -432,7 +367,7 @@ return function(mod)
       end
     end
     for _, moveId in ipairs(speciesDef.level1Moves or {}) do add(moveId) end
-    for _, entry in ipairs(speciesDef.learnset or speciesDef.levelMoves or {}) do
+    for _, entry in ipairs(speciesDef.learnset or {}) do
       if entry.level <= level then add(entry.move) end
     end
     while #ids > 4 do table.remove(ids, 1) end
@@ -471,13 +406,11 @@ return function(mod)
       dex.owned = dex.owned or {}
       dex.seen[speciesId] = true
       dex.owned[speciesId] = true
-      dex.caught = dex.caught or {}
-      dex.caught[speciesId] = true
     end
     return true
   end
 
-  local function findTrackedStarter(game, expectedSpecies)
+  findTrackedStarter = function(game, expectedSpecies)
     local party = game and game.save and game.save.party or {}
     for _, mon in ipairs(party) do
       if mon.species == expectedSpecies then return mon end
@@ -488,28 +421,30 @@ return function(mod)
     return nil
   end
 
-  local function starterWasReceived(game)
-    if isGen2(game) then return mod.save:get(STARTER_SLOT_KEY) ~= nil end
+  local function applyPostLabMaxDVs(game)
+    if isGen2(game) then return end
     local flags = game and game.save and game.save.flags or {}
-    return flags.EVENT_GOT_STARTER == true
-  end
-
-  local function applyPostLabConfiguredDVs(game)
-    if not starterWasReceived(game) then return end
+    if not flags.EVENT_GOT_STARTER then return end
 
     local mon = findTrackedStarter(game, mod.save:get(STARTER_SPECIES_KEY))
-    applyConfiguredPlayerDVs(game, mon)
+    if forceMaxDVs(game, mon) then
+      mod.save:set(MAX_STARTER_DVS_APPLIED_KEY, true)
+    end
   end
 
   local function applyPostLabSelection(game, slotName)
+    if isGen2(game) then return end
     local flags = game and game.save and game.save.flags or {}
     local chosenSlot = mod.save:get(STARTER_SLOT_KEY) or chosenStarterSlot(flags)
-    if not starterWasReceived(game) or chosenSlot ~= slotName then return end
+    if not flags.EVENT_GOT_STARTER or chosenSlot ~= slotName then return end
 
     local species = selectedSpecies(game, SLOTS[slotName])
     local mon = findTrackedStarter(game, mod.save:get(STARTER_SPECIES_KEY))
     if replaceStarterSpecies(game, mon, species) then
-      applyConfiguredPlayerDVs(game, mon)
+      if mod.options:get(MAX_STARTER_DVS_OPTION) == true then
+        forceMaxDVs(game, mon)
+        mod.save:set(MAX_STARTER_DVS_APPLIED_KEY, true)
+      end
       mod.save:set(STARTER_SLOT_KEY, slotName)
       mod.save:set(STARTER_SPECIES_KEY, species)
     end
@@ -524,14 +459,23 @@ return function(mod)
     local changedModId = type(event.mod) == "table" and event.mod.id or event.mod
     if changedModId ~= mod.id then return end
 
+    local game = mod.game or lastGame
+    if isGen2(game) then
+      if SLOT_NAME_BY_OPTION[event.key] or event.key == GOLD_DV_MODE_OPTION
+        or event.key == GOLD_HELD_ITEM_OPTION or event.key == "player_starter_dv_mode"
+        or event.key == "starter_held_item" or event.key == "starter_settings_scope" then
+        applyGoldLiveSettings(game)
+      end
+      return
+    end
+
     local slotName = SLOT_NAME_BY_OPTION[event.key]
     if slotName then
-      applyPostLabSelection(mod.game or lastGame, slotName)
-    elseif (event.key == MAX_STARTER_DVS_OPTION or event.key == SHINY_STARTER_OPTION)
-      and event.value == true then
-      -- Turning either player-only DV setting on after the Lab upgrades only
-      -- the tracked starter. Shiny takes precedence when both are enabled.
-      applyPostLabConfiguredDVs(mod.game or lastGame)
+      applyPostLabSelection(game, slotName)
+    elseif event.key == MAX_STARTER_DVS_OPTION and event.value == true then
+      -- Turning the setting on after Oak's Lab upgrades only the tracked
+      -- player starter. Turning it off deliberately does not rewrite DVs.
+      applyPostLabMaxDVs(mod.game or lastGame)
     end
   end)
 
@@ -541,22 +485,14 @@ return function(mod)
   -- by then the player mon has entered the party, so this applies DVs only to
   -- that marked gift and never enters the independent trainer.party path.
   mod.events:on("screen.pushed", function()
-    local pendingShiny = mod.save:get(PENDING_SHINY_STARTER_KEY) == true
-    local pendingMax = mod.save:get(PENDING_MAX_STARTER_DVS_KEY) == true
-    if not pendingShiny and not pendingMax then return end
+    if isGen2(lastGame or mod.game) then return end
+    if not mod.save:get(PENDING_MAX_STARTER_DVS_KEY) then return end
     local game = lastGame or mod.game
     local mon = findTrackedStarter(game, mod.save:get(STARTER_SPECIES_KEY))
-    if pendingShiny then
-      if forceShinyDVs(game, mon) then
-        mod.save:set(SHINY_STARTER_APPLIED_KEY, true)
-        mod.save:set(MAX_STARTER_DVS_APPLIED_KEY, nil)
-      end
-    elseif forceMaxDVs(game, mon) then
+    if forceMaxDVs(game, mon) then
       mod.save:set(MAX_STARTER_DVS_APPLIED_KEY, true)
-      mod.save:set(SHINY_STARTER_APPLIED_KEY, nil)
     end
     mod.save:set(PENDING_MAX_STARTER_DVS_KEY, nil)
-    mod.save:set(PENDING_SHINY_STARTER_KEY, nil)
   end)
 
   local function ballX(objectId)
@@ -581,51 +517,15 @@ return function(mod)
     -- Randomizer's own listener runs at its default event priority. This
     -- handler deliberately runs after it, so the player’s named ball choice
     -- wins regardless of which mod was selected first at boot.
-    local randomizerActive = randomizerStarterRandomizationActive(game, GEN1_RANDOMIZER_ID)
+    local randomizerActive = randomizerStarterRandomizationActive(game)
     gift.species = selectedSpecies(game, slot)
     gift.level = 5
     lastGame = game or lastGame
-    local shinySelected = mod.options:get(SHINY_STARTER_OPTION) == true
-    mod.save:set(PENDING_SHINY_STARTER_KEY, shinySelected or nil)
     mod.save:set(PENDING_MAX_STARTER_DVS_KEY,
-      (not shinySelected and mod.options:get(MAX_STARTER_DVS_OPTION) == true) or nil)
-    mod.save:set(GEN1_RANDOMIZER_OVERRIDE_KEY, randomizerActive)
+      mod.options:get(MAX_STARTER_DVS_OPTION) == true or nil)
+    mod.save:set(RANDOMIZER_OVERRIDE_KEY, randomizerActive)
     mod.save:set(STARTER_SLOT_KEY, slotName)
     mod.save:set(STARTER_SPECIES_KEY, gift.species)
-  end, -10000)
-
-  -- Gold's bytecode VM does not use Gen 1's gift event. Its shared
-  -- script-command hook runs before `givepoke` constructs and inserts the
-  -- player mon. The -10000 priority runs after Gen 2 Randomizer's default
-  -- wrapper, so a confirmed LOGIC/NO LOGIC setup may randomize first while the
-  -- player's named Elm-ball choice remains the final starter species.
-  mod.hooks:wrap("script.command", function(next, ctx, name, args, cmd)
-    if isGen2() and name == "givepoke" and type(ctx) == "table"
-      and ctx.mapId == "ELMS_LAB" then
-      local slotName
-      for candidateName, slot in pairs(SLOTS) do
-        if ctx.object == slot.ballObjectIndex then slotName = candidateName break end
-      end
-      local slot = slotName and SLOTS[slotName]
-      local game = mod.game or lastGame
-      if slot and game and validSpecies(game, selectedSpecies(game, slot)) then
-        local species = selectedSpecies(game, slot)
-        local replacement = {}
-        for key, value in pairs(cmd or {}) do replacement[key] = value end
-        replacement.species = game.data.pokemon[species].index
-        replacement.item = selectedStarterHeldItemIndex(game, slotName, replacement.item)
-        local gen2RandomizerActive = randomizerStarterRandomizationActive(game, GEN2_RANDOMIZER_ID)
-        mod.save:set(GEN2_RANDOMIZER_OVERRIDE_KEY, gen2RandomizerActive)
-        lastGame = game
-        mod.save:set(STARTER_SLOT_KEY, slotName)
-        mod.save:set(STARTER_SPECIES_KEY, species)
-        local result = next(ctx, name, args, replacement)
-        local mon = findTrackedStarter(game, species)
-        applyConfiguredPlayerDVs(game, mon)
-        return result
-      end
-    end
-    return next(ctx, name, args, cmd)
   end, -10000)
 
   local function starterBallHandler(slotName, slot)
@@ -691,12 +591,58 @@ return function(mod)
     })
   end
 
+  if isGen2() then
+    local function goldSpeciesIdByIndex(game, index)
+      for speciesId, species in pairs(game and game.data and game.data.pokemon or {}) do
+        if type(species) == "table" and species.index == index then return speciesId end
+      end
+      return nil
+    end
+
+    mod.hooks:wrap("script.command", function(next, ctx, name, args, cmd)
+      local game = mod.game or lastGame
+      local slotName = goldSlotForScript(ctx)
+      if name ~= "givepoke" or not slotName or mod.save:get(GOLD_RECEIVED_KEY) then
+        return next(ctx, name, args, cmd)
+      end
+
+      local slot = GOLD_SLOTS[slotName]
+      local target = selectedSpecies(game, slot)
+      local targetDef = game and game.data and game.data.pokemon and game.data.pokemon[target]
+      if not targetDef or not cmd then return next(ctx, name, args, cmd) end
+
+      local rewritten = {}
+      for key, value in pairs(cmd) do rewritten[key] = value end
+      rewritten.species = targetDef.index
+      local nativeItem = goldItemIndex(game, cmd.item)
+      local heldItem = goldHeldItem(game, nativeItem)
+      local heldIndex = goldItemIndex(game, heldItem)
+      rewritten.item = heldIndex or 0
+
+      local party = game and game.save and game.save.party or {}
+      local before = #party
+      local result = next(ctx, name, args, rewritten)
+      local received = party[#party]
+      if #party == before + 1 and received then rebuildGoldStarter(game, received, slotName) end
+      return result
+    end)
+
+    mod.events:on("script.ended", function(event)
+      local ctx = event and event.ctx
+      local game = mod.game or lastGame
+      local slotName = goldSlotForScript(ctx)
+      if not (event and event.completed ~= false and slotName and not mod.save:get(GOLD_RECEIVED_KEY)) then return end
+      local party = game and game.save and game.save.party or {}
+      local mon = party[#party]
+      local native = goldSpeciesIdByIndex(game, GOLD_SLOTS[slotName].nativeSpeciesIndex)
+      if mon and (#party == 1 or mon.species == native) then rebuildGoldStarter(game, mon, slotName) end
+    end)
+  end
+
   local RIVAL_CLASSES = {
     OPP_RIVAL1 = true,
     OPP_RIVAL2 = true,
     OPP_RIVAL3 = true,
-    RIVAL1 = true,
-    RIVAL2 = true,
   }
   -- Native party indices 1/2/3 correspond to player left/middle/right,
   -- whose rival counter-picks are middle/right/left respectively.
@@ -712,26 +658,25 @@ return function(mod)
     return out
   end
 
-  -- Keep the configured rival counter-pick as the final species rewrite after
-  -- any active Randomizer trainer-party projection, regardless of mod boot order.
   mod.hooks:wrap("trainer.party", function(next, trainerClass, partyIndex, party)
     party = next(trainerClass, partyIndex, party)
-    if not RIVAL_CLASSES[trainerClass] or #party == 0 then return party end
-
-    if isGen2(mod.game) then
-      -- Gold identifies rival rosters by names such as RIVAL1_2_CHIKORITA.
-      -- The selected ball, not the rival's independent DV/item generation,
-      -- controls only the last starter-line party member.
-      local playerSlot = mod.save:get(STARTER_SLOT_KEY)
-      local rivalSlot = playerSlot and SLOTS[playerSlot] and SLOTS[playerSlot].rivalSlot
-      local species = rivalSlot and selectedSpecies(mod.game, SLOTS[rivalSlot])
-      if not validSpecies(mod.game, species) then return party end
+    if isGen2() then
+      local goldRival = trainerClass == 9 or trainerClass == 42
+        or trainerClass == "RIVAL1" or trainerClass == "RIVAL2"
+      local chosen = mod.save:get(STARTER_SLOT_KEY)
+      local slot = chosen and GOLD_SLOTS[chosen]
+      if not (goldRival and slot and #party > 0) then return party end
       local replaced = copyParty(party)
-      replaced[#replaced].species = species
+      replaced[#replaced].species = selectedSpecies(mod.game or lastGame, GOLD_SLOTS[slot.rivalSlot])
       return replaced
     end
+    if not RIVAL_CLASSES[trainerClass]
+      or type(partyIndex) ~= "number"
+      or partyIndex < 1
+      or #party == 0 then
+      return party
+    end
 
-    if type(partyIndex) ~= "number" or partyIndex < 1 then return party end
     local slotName = RIVAL_SLOT_BY_PARTY_OFFSET[((partyIndex - 1) % 3) + 1]
     local species = selectedSpecies(mod.game, SLOTS[slotName])
     if not validSpecies(mod.game, species) then return party end
@@ -741,5 +686,5 @@ return function(mod)
     -- Keep the original levels, moves, and the rest of each vanilla party.
     replaced[#replaced].species = species
     return replaced
-  end, -10000)
+  end)
 end

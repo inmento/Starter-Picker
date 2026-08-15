@@ -1,12 +1,14 @@
 {
   "id": "starter_picker",
   "name": "Starter Picker",
-  "version": "0.0.4",
+  "version": "1.0.0",
   "entry": "main.lua",
   "api": 2,
   "category": "GAMEPLAY",
   "profile": "content",
   "games": ["gen1", "gen2"],
   "affects_link": false,
-  "description": "Edit Gen 1 Oak’s Lab or Gold Elm’s Lab starter species, retain the rival counter-pick, integrate safely with Gen 1/Gen 2 Randomizer starter modes, select or weight-randomize Gold starter held items, and optionally give only the player starter maximum DVs. Gold support is untested."
+  "permissions": ["engine_internals"],
+  "github": "inmento/Starter-Picker",
+  "description": "Choose player starters in Gen 1 and Gold, preserve rival counter-picks, select Gold held items, and apply player-only Max, Random, or Shiny DVs."
 }

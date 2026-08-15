@@ -185,4 +185,4 @@ assert(rival[#rival].species == "MEW", "Gold rival did not use the configured mi
 assert(rival[#rival].item == "BERRY" and rival[#rival].dvs.attack == 1 and rival[#rival].dvs.hp == 1,
   "player-only Gold starter handling changed the rival’s held item or DVs")
 assert(rivalVanilla[#rivalVanilla].species == "TOTODILE", "Gold rival projection mutated the original party")
-print("gold starter picker v0.0.4 harness: valid")
+print("gold starter picker 1.0.0 harness: valid")
