@@ -10,11 +10,11 @@ local optionValues = {
 }
 local modSave = {}
 local species = {
-  CHARMANDER = { dex = 4, name = "CHARMANDER" },
-  SQUIRTLE = { dex = 7, name = "SQUIRTLE" },
-  BULBASAUR = { dex = 1, name = "BULBASAUR" },
-  MEW = { dex = 151, name = "MEW" },
-  MEWTWO = { dex = 150, name = "MEWTWO" },
+  CHARMANDER = { dex = 4, name = "CHARMANDER", types = { "FIRE" } },
+  SQUIRTLE = { dex = 7, name = "SQUIRTLE", types = { "WATER" } },
+  BULBASAUR = { dex = 1, name = "BULBASAUR", types = { "BUG" } },
+  MEW = { dex = 151, name = "MEW", types = { "FIRE" } },
+  MEWTWO = { dex = 150, name = "MEWTWO", types = { "PSYCHIC" } },
 }
 
 local game = {
@@ -137,9 +137,10 @@ for _, row in ipairs(recordedRows) do
     rivalReceived = row[3].RAM
   end
 end
-assert(received == "MEWTWO", "Charmander ball did not use its configured species")
-assert(rivalReceived == "MEW", "Charmander ball did not retain the Squirtle-ball rival pick")
-assert(emittedGift.species == "MEWTWO", "configured starter did not override competing gift transform")
+assert(received == "MEWTWO", "Charmander ball did not use its configured pre-gift species")
+assert(optionValues.charmander_ball == "BULBASAUR", "Randomizer starter result was not copied into Starter Picker options")
+assert(rivalReceived == "BULBASAUR", "rival did not choose the available super-effective starter")
+assert(emittedGift.species == "BULBASAUR", "synchronized Randomizer starter species was not retained")
 assert(emittedGift.level == 5, "starter gift level was not preserved")
 assert(game.save.party[1].dvs.attack == 15 and game.save.party[1].dvs.defense == 15
   and game.save.party[1].dvs.speed == 15 and game.save.party[1].dvs.special == 15
@@ -155,6 +156,7 @@ assert(modSave.pending_starter_slot == nil, "pending starter state was not clean
 -- ball choice still works normally and does not rely on Randomizer behavior.
 game.save.modData.pokemon_randomizer.enabled = false
   game.save.modData.pokemon_randomizer.settings.starters = "off"
+optionValues.charmander_ball = "MEWTWO"
 modSave.pending_starter_slot = "LEFT"
 local vanillaGift = {
   ctx = { game = game, overworld = overworld, save = game.save },
@@ -202,7 +204,7 @@ local originalParty = {
 }
 local projected = callbacks.hooks["trainer.party"].fn(
   function(_, _, party) return party end, "OPP_RIVAL1", 1, originalParty)
-assert(projected[#projected].species == "MEW", "rival party 1 did not use the current Randomizer-selected rival ball")
+assert(projected[#projected].species == "MEW", "rival party 1 did not use the safe fallback starter")
 assert(originalParty[#originalParty].species == "SQUIRTLE", "vanilla party was mutated")
 assert(projected[#projected].dvs.attack == 1 and projected[#projected].dvs.hp == 1,
   "max player starter DVs leaked into the rival party projection")
@@ -212,7 +214,7 @@ assert(projected[#projected].dvs.attack == 1 and projected[#projected].dvs.hp ==
 optionValues.squirtle_ball = "BULBASAUR"
 local updated = callbacks.hooks["trainer.party"].fn(
   function(_, _, party) return party end, "OPP_RIVAL1", 1, originalParty)
-assert(updated[#updated].species == "BULBASAUR", "post-load selector change was not read live")
+assert(updated[#updated].species == "MEW", "post-load selector change was not read live")
 
 -- With the toggle disabled, the post-gift listener has no pending player
 -- adjustment and must leave the engine-generated DVs intact.

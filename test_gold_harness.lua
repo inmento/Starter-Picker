@@ -28,11 +28,11 @@ local optionValues = {
   gold_held_item = "BERRY_JUICE",
 }
 local species = {
-  CHIKORITA = { dex = 152, name = "CHIKORITA", index = 152 },
-  CYNDAQUIL = { dex = 155, name = "CYNDAQUIL", index = 155 },
-  TOTODILE = { dex = 158, name = "TOTODILE", index = 158 },
-  MEW = { dex = 151, name = "MEW", index = 151 },
-  CELEBI = { dex = 251, name = "CELEBI", index = 251 },
+  CHIKORITA = { dex = 152, name = "CHIKORITA", index = 152, types = { "GRASS" } },
+  CYNDAQUIL = { dex = 155, name = "CYNDAQUIL", index = 155, types = { "FIRE" } },
+  TOTODILE = { dex = 158, name = "TOTODILE", index = 158, types = { "WATER" } },
+  MEW = { dex = 151, name = "MEW", index = 151, types = { "WATER" } },
+  CELEBI = { dex = 251, name = "CELEBI", index = 251, types = { "PSYCHIC", "GRASS" } },
   BEYOND = { dex = 252, name = "BEYOND", index = 252 },
 }
 local items = {
@@ -45,7 +45,11 @@ for id, def in pairs(species) do byIndex[def.index] = id end
 
 local game = {
   data = { gen2Maps = {}, pokemon = species, items = items, moves = {}, gen2Text = {} },
-  save = { party = {}, pokedex = { seen = {}, caught = {} }, modData = {} },
+  save = {
+    party = {}, pokedex = { seen = {}, caught = {} },
+    options = { modOptions = { starter_picker = optionValues } },
+    modData = { gen2_randomizer = { randomizer_mode = "logic" } },
+  },
 }
 local mod = {
   id = "starter_picker", game = game,
@@ -96,16 +100,26 @@ callbacks.hooks["script.command"](function(_, _, _, finalCmd)
       dvs = { attack = 1, defense = 1, speed = 1, special = 1 }, hp = 20,
       stats = { hp = 20 }, statExp = {} })
 end, { generation = 2, scriptKey = "60:40c6" }, "givepoke", {},
-  { species = 155, level = 5, item = 173 })
-assert(dispatched and dispatched.species == 251, "Gold accepted starter did not use configured species")
+  { species = 151, level = 5, item = 173 })
+assert(dispatched and dispatched.species == 151, "Gold accepted starter did not retain the transformed species")
 assert(dispatched.item == 139, "Gold accepted starter did not use configured held item")
 local player = game.save.party[1]
-assert(player.species == "CELEBI" and player.name == "CELEBI", "Gold player starter was not rebuilt correctly")
+assert(player.species == "MEW" and player.name == "MEW", "Gold player starter was not rebuilt correctly")
 assert(player.item == "BERRY_JUICE", "Gold player starter held item was not preserved as the selected ID")
 assert(player.dvs.attack == 15 and player.dvs.defense == 15
   and player.dvs.speed == 15 and player.dvs.special == 15,
   "Gold maximum player starter DVs were not applied")
-assert(game.save.pokedex.seen.CELEBI and game.save.pokedex.caught.CELEBI,
-  "Gold starter replacement did not update Pokédex ownership")
+assert(game.save.pokedex.seen.MEW and game.save.pokedex.caught.MEW,
+  "Gold synchronized starter did not update Pokédex ownership")
+assert(optionValues.cyndaquil_ball == "MEW",
+  "Gold Randomizer-transformed starter was not copied into Starter Picker options")
 
-print("gold starter picker option, preview-cry, accepted-starter, held-item, and DV harness: valid")
+local rivalParty = { { species = "CYNDAQUIL", level = 5 } }
+local projected = callbacks.hooks["trainer.party"](
+  function(_, _, party) return party end, 9, 1, rivalParty)
+assert(projected[#projected].species == "CHIKORITA",
+  "Gold rival did not choose the weakness-aware counter starter")
+assert(rivalParty[#rivalParty].species == "CYNDAQUIL",
+  "Gold rival projection mutated the vanilla party")
+
+print("gold starter picker randomizer-sync, preview-cry, accepted-starter, held-item, DV, and rival harness: valid")

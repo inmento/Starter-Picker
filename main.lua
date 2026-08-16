@@ -195,10 +195,203 @@ return function(mod)
       and game.data.pokemon[speciesId] ~= nil
   end
 
+  local RANDOMIZER_MANUAL_OVERRIDE_KEY = "randomizer_starter_manual_override"
+  local RANDOMIZER_SYNCED_KEY = "randomizer_starter_synced"
+
+  local function randomizerHandle()
+    if type(mod.find) ~= "function" then return nil end
+    local ok, handle = pcall(mod.find, mod, RANDOMIZER_ID)
+    return ok and type(handle) == "table" and handle or nil
+  end
+
+  -- Prefer the randomizer's public active-run facade, then fall back to the
+  -- saved namespace used by earlier compatible builds. The Starter Picker
+  -- never writes either representation.
+  local function randomizerState(game)
+    local save = game and game.save
+    local direct = save and save.modData and save.modData[RANDOMIZER_ID]
+    if type(direct) == "table" then return direct end
+    local handle = randomizerHandle()
+    local exports = handle and handle.exports
+    local saveApi = exports and exports.save
+    if type(saveApi) == "table" and type(saveApi.activeRun) == "function" then
+      local ok, run = pcall(saveApi.activeRun)
+      if ok and type(run) == "table" then return run end
+    end
+    return nil
+  end
+
+  local function randomizerStarterMode(game, state)
+    state = state or randomizerState(game)
+    if type(state) ~= "table" then return false end
+    if state.enabled == false then return false end
+    if isGen2(game) then
+      local mode = tostring(state.randomizer_mode or "vanilla")
+      return mode == "logic" or mode == "nologic"
+    end
+    local settings = type(state.settings) == "table" and state.settings or {}
+    local starterMode = tostring(settings.starters or "off")
+    if state.enabled == true then
+      return starterMode == "random" or starterMode == "type_triad"
+    end
+    return type(state.mappings) == "table"
+      and type(state.mappings.starters) == "table"
+      and next(state.mappings.starters) ~= nil
+  end
+
+  local function randomizerStarterOffer(game, slotName)
+    local state = randomizerState(game)
+    if not randomizerStarterMode(game, state) then return nil end
+    local mappings = state and state.mappings
+    local starters = mappings and mappings.starters
+    local offer = type(starters) == "table" and starters[slotName]
+    local species = type(offer) == "table" and offer.species or nil
+    return validSpecies(game, species) and species or nil
+  end
+
+  local function writeStarterOption(game, key, value)
+    if not (game and game.save and type(value) == "string") then return false end
+    game.save.options = game.save.options or {}
+    game.save.options.modOptions = game.save.options.modOptions or {}
+    game.save.options.modOptions[mod.id] = game.save.options.modOptions[mod.id] or {}
+    game.save.options.modOptions[mod.id][key] = value
+    local loader = game.mods
+    if loader then
+      loader.modOptions = loader.modOptions or {}
+      loader.modOptions[mod.id] = loader.modOptions[mod.id] or {}
+      loader.modOptions[mod.id][key] = value
+    end
+    if game.writeOptions then game:writeOptions() end
+    return true
+  end
+
+  local function syncRandomizerStarterOptions(game)
+    if not randomizerStarterMode(game) or mod.save:get(RANDOMIZER_MANUAL_OVERRIDE_KEY) then
+      return false
+    end
+    local changed = false
+    for slotName, slot in pairs(SLOTS) do
+      local species = randomizerStarterOffer(game, slotName)
+      if species then
+        local current = mod.options:get(slot.option)
+        if current ~= species then
+          writeStarterOption(game, slot.option, species)
+          changed = true
+        end
+      end
+    end
+    if changed then mod.save:set(RANDOMIZER_SYNCED_KEY, true) end
+    return changed
+  end
+
+  local function observeRandomizerStarter(game, slotName, species)
+    if not (randomizerStarterMode(game) and not mod.save:get(RANDOMIZER_MANUAL_OVERRIDE_KEY)
+      and validSpecies(game, species)) then return false end
+    if randomizerStarterOffer(game, slotName) then return false end
+    local slot = SLOTS[slotName]
+    if slot then
+      writeStarterOption(game, slot.option, species)
+      mod.save:set(RANDOMIZER_SYNCED_KEY, true)
+      return true
+    end
+    return false
+  end
+
   local function selectedSpecies(game, slot)
+    local slotName
+    for name, candidate in pairs(SLOTS) do
+      if candidate == slot then slotName = name; break end
+    end
+    if slotName and not mod.save:get(RANDOMIZER_MANUAL_OVERRIDE_KEY) then
+      local randomized = randomizerStarterOffer(game, slotName)
+      if randomized then return randomized end
+    end
     local chosen = mod.options:get(slot.option)
     if validSpecies(game, chosen) then return chosen end
     return slot.default
+  end
+
+  -- Generation-I/II type-effectiveness logic is intentionally local to this
+  -- mod. It chooses a rival from the two unselected starter slots: prefer any
+  -- candidate that is super-effective against the player's choice; if neither
+  -- is, avoid a candidate that is weak to the player's choice when possible.
+  local TYPE_SUPER = {
+    NORMAL={}, FIRE={GRASS=true,ICE=true,BUG=true}, WATER={FIRE=true,GROUND=true,ROCK=true},
+    ELECTRIC={WATER=true,FLYING=true}, GRASS={WATER=true,GROUND=true,ROCK=true},
+    ICE={GRASS=true,GROUND=true,FLYING=true,DRAGON=true}, FIGHTING={NORMAL=true,ICE=true,ROCK=true},
+    POISON={GRASS=true,BUG=true}, GROUND={FIRE=true,ELECTRIC=true,POISON=true,ROCK=true},
+    FLYING={GRASS=true,FIGHTING=true,BUG=true}, PSYCHIC={FIGHTING=true,POISON=true},
+    BUG={GRASS=true,POISON=true,PSYCHIC=true}, ROCK={FIRE=true,ICE=true,FLYING=true,BUG=true},
+    GHOST={GHOST=true,PSYCHIC=true}, DRAGON={DRAGON=true}, DARK={PSYCHIC=true,GHOST=true},
+    STEEL={ICE=true,ROCK=true},
+  }
+  local TYPE_RESIST = {
+    NORMAL={ROCK=true,STEEL=true}, FIRE={FIRE=true,WATER=true,ROCK=true,DRAGON=true},
+    WATER={WATER=true,GRASS=true,DRAGON=true}, ELECTRIC={ELECTRIC=true,GRASS=true,DRAGON=true},
+    GRASS={FIRE=true,GRASS=true,POISON=true,FLYING=true,BUG=true,DRAGON=true},
+    ICE={WATER=true,ICE=true}, FIGHTING={POISON=true,FLYING=true,PSYCHIC=true,BUG=true},
+    POISON={POISON=true,GROUND=true,ROCK=true,GHOST=true}, GROUND={GRASS=true,BUG=true},
+    FLYING={ELECTRIC=true,ROCK=true}, PSYCHIC={PSYCHIC=true,STEEL=true},
+    BUG={FIRE=true,FIGHTING=true,FLYING=true,GHOST=true,STEEL=true},
+    ROCK={FIGHTING=true,GROUND=true,STEEL=true}, GHOST={DARK=true}, DRAGON={STEEL=true},
+    DARK={FIGHTING=true,DARK=true,FAIRY=true}, STEEL={FIRE=true,WATER=true,ELECTRIC=true,STEEL=true},
+  }
+  local TYPE_IMMUNE = {
+    NORMAL={GHOST=true}, ELECTRIC={GROUND=true}, FIGHTING={GHOST=true},
+    GROUND={FLYING=true}, GHOST={NORMAL=true}, PSYCHIC={DARK=true},
+    DRAGON={FAIRY=true}, POISON={STEEL=true},
+  }
+
+  local function normalizeType(value)
+    value = tostring(value or ""):upper():gsub("_TYPE$", "")
+    if value == "PSYCHIC_TYPE" then return "PSYCHIC" end
+    return value
+  end
+
+  local function matchup(game, attackerId, defenderId)
+    local attacker = game and game.data and game.data.pokemon and game.data.pokemon[attackerId]
+    local defender = game and game.data and game.data.pokemon and game.data.pokemon[defenderId]
+    local attackTypes, defendTypes = attacker and attacker.types or {}, defender and defender.types or {}
+    local best = 1
+    for _, attackType in ipairs(attackTypes) do
+      local score = 1
+      for _, defendType in ipairs(defendTypes) do
+        local a, d = normalizeType(attackType), normalizeType(defendType)
+        local chart = game.data.typeEffectiveness or game.data.typeChart
+        local external = chart and chart[a] and chart[a][d]
+        if type(external) == "number" then score = score * external
+        elseif TYPE_IMMUNE[a] and TYPE_IMMUNE[a][d] then score = 0
+        elseif TYPE_SUPER[a] and TYPE_SUPER[a][d] then score = score * 2
+        elseif TYPE_RESIST[a] and TYPE_RESIST[a][d] then score = score * 0.5 end
+      end
+      if score > best then best = score end
+    end
+    return best
+  end
+
+  local function randomChoice(rows)
+    if #rows < 2 then return rows[1] end
+    local roll = love and love.math and love.math.random and love.math.random(#rows)
+    return rows[roll or math.random(#rows)]
+  end
+
+  local function rivalSpeciesFor(game, playerSlotName)
+    local player = selectedSpecies(game, SLOTS[playerSlotName])
+    local candidates = {}
+    for _, slotName in ipairs({ "LEFT", "MIDDLE", "RIGHT" }) do
+      if slotName ~= playerSlotName then
+        candidates[#candidates + 1] = {
+          slot = slotName, species = selectedSpecies(game, SLOTS[slotName]),
+        }
+      end
+    end
+    local strong, safe = {}, {}
+    for _, candidate in ipairs(candidates) do
+      if matchup(game, candidate.species, player) > 1 then strong[#strong + 1] = candidate end
+      if matchup(game, player, candidate.species) <= 1 then safe[#safe + 1] = candidate end
+    end
+    local chosen = #strong > 0 and randomChoice(strong) or (#safe > 0 and randomChoice(safe) or randomChoice(candidates))
+    return chosen and chosen.species or nil
   end
 
   -- Gen 1 Randomizer randomizes Oak's Lab starters only after its setup has
@@ -528,11 +721,16 @@ return function(mod)
   mod.hooks:wrap("save.new_game", function(next, save)
     save = next(save)
     resetStarterOptionsForNewGame(mod.game or lastGame, save)
+    mod.save:set(RANDOMIZER_MANUAL_OVERRIDE_KEY, nil)
+    mod.save:set(RANDOMIZER_SYNCED_KEY, nil)
     return save
   end)
 
   mod.events:on("game.ready", function(event)
     lastGame = (event and event.game) or lastGame or mod.game
+    -- A randomizer can be enabled after the title screen and before Oak's
+    -- starter sequence. Sync as soon as its saved run becomes available.
+    syncRandomizerStarterOptions(lastGame)
     if not isGen2(lastGame) and mod.options:get(MAX_STARTER_DVS_OPTION) == true then
       applyPostLabMaxDVs(lastGame)
     end
@@ -544,8 +742,14 @@ return function(mod)
     if changedModId ~= mod.id then return end
 
     local game = mod.game or lastGame
+    local changedSlot = SLOT_NAME_BY_OPTION[event.key]
+    if changedSlot and randomizerStarterMode(game) then
+      -- A player change after synchronization is deliberate and becomes the
+      -- authoritative Starter Picker assignment for this save.
+      mod.save:set(RANDOMIZER_MANUAL_OVERRIDE_KEY, true)
+    end
     if isGen2(game) then
-      if SLOT_NAME_BY_OPTION[event.key] or event.key == GOLD_DV_MODE_OPTION
+      if changedSlot or event.key == GOLD_DV_MODE_OPTION
         or event.key == GOLD_HELD_ITEM_OPTION or event.key == "player_starter_dv_mode"
         or event.key == "starter_held_item" or event.key == "starter_settings_scope" then
         applyGoldLiveSettings(game)
@@ -719,7 +923,12 @@ return function(mod)
     -- Randomizer's own listener runs at its default event priority. This
     -- handler deliberately runs after it, so the player’s named ball choice
     -- wins regardless of which mod was selected first at boot.
-    local randomizerActive = randomizerStarterRandomizationActive(game)
+    local randomizerActive = randomizerStarterMode(game)
+    if randomizerActive and not mod.save:get(RANDOMIZER_MANUAL_OVERRIDE_KEY) then
+      -- If a randomizer transformed the gift but exposes no saved mapping,
+      -- capture its final species before applying our own selector projection.
+      observeRandomizerStarter(game, slotName, gift.species)
+    end
     gift.species = selectedSpecies(game, slot)
     gift.level = 5
     lastGame = game or lastGame
@@ -753,7 +962,7 @@ return function(mod)
       end
 
       local playerSpecies = selectedSpecies(game, slot)
-      local rivalSpecies = selectedSpecies(game, SLOTS[slot.rivalSlot])
+      local rivalSpecies = rivalSpeciesFor(game, slotName)
       mod.save:set(PENDING_STARTER_SLOT_KEY, slotName)
       local function finish()
         mod.save:set(PENDING_STARTER_SLOT_KEY, nil)
@@ -807,6 +1016,15 @@ return function(mod)
       if not slotName then return next(ctx, name, args, cmd) end
 
       local slot = GOLD_SLOTS[slotName]
+      if name == "givepoke" and cmd then
+        local transformedId = cmd.species
+        local transformedSpecies = type(transformedId) == "number"
+          and goldSpeciesIdByIndex(game, transformedId) or transformedId
+        if transformedSpecies and not mod.save:get(RANDOMIZER_MANUAL_OVERRIDE_KEY)
+          and randomizerStarterMode(game) then
+          observeRandomizerStarter(game, slotName, transformedSpecies)
+        end
+      end
       local target = selectedSpecies(game, slot)
       local targetDef = game and game.data and game.data.pokemon and game.data.pokemon[target]
       if not targetDef or not cmd then return next(ctx, name, args, cmd) end
@@ -892,8 +1110,11 @@ return function(mod)
       local chosen = mod.save:get(STARTER_SLOT_KEY)
       local slot = chosen and GOLD_SLOTS[chosen]
       if not (goldRival and slot and #party > 0) then return party end
+      local game = mod.game or lastGame
+      local rivalSpecies = rivalSpeciesFor(game, chosen)
+      if not validSpecies(game, rivalSpecies) then return party end
       local replaced = copyParty(party)
-      replaced[#replaced].species = selectedSpecies(mod.game or lastGame, GOLD_SLOTS[slot.rivalSlot])
+      replaced[#replaced].species = rivalSpecies
       return replaced
     end
     if not RIVAL_CLASSES[trainerClass]
@@ -905,21 +1126,7 @@ return function(mod)
 
     local slotName = RIVAL_SLOT_BY_PARTY_OFFSET[((partyIndex - 1) % 3) + 1]
     local game = mod.game or lastGame
-    local species = selectedSpecies(game, SLOTS[slotName])
-    if randomizerStarterRandomizationActive(game) then
-      local state = game and game.save and game.save.modData
-        and game.save.modData[RANDOMIZER_ID]
-      local mappings = state and state.mappings
-      local starters = mappings and mappings.starters
-      local flags = mappings and mappings.starterFlags
-      local offsets = flags and flags.partyOffsetSlots
-      local randomizerSlot = offsets and offsets[((partyIndex - 1) % 3) + 1]
-      local offer = randomizerSlot and starters and starters[randomizerSlot]
-      local rivalSlot = offer and offer.rivalSlot
-      local rivalOffer = rivalSlot and SLOTS[rivalSlot]
-      local rival = rivalOffer and selectedSpecies(game, rivalOffer)
-      if type(rival) == "string" and validSpecies(game, rival) then species = rival end
-    end
+    local species = rivalSpeciesFor(game, slotName)
     if not validSpecies(game, species) then return party end
 
     local replaced = copyParty(party)
