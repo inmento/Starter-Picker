@@ -23,9 +23,17 @@ local game = {
     options = { modOptions = { starter_picker = optionValues } },
     flags = { EVENT_FOLLOWED_OAK_INTO_LAB = true },
     modData = {
-      gen1_randomizer = {
-        startup_config_confirmed = true,
-        randomizer_mode = "logic",
+      pokemon_randomizer = {
+        enabled = true,
+        settings = { starters = "random" },
+        mappings = {
+          starters = {
+            LEFT = { rivalSlot = "MIDDLE", rivalSpecies = "SQUIRTLE" },
+            MIDDLE = { rivalSlot = "RIGHT", rivalSpecies = "BULBASAUR" },
+            RIGHT = { rivalSlot = "LEFT", rivalSpecies = "CHARMANDER" },
+          },
+          starterFlags = { partyOffsetSlots = { "LEFT", "MIDDLE", "RIGHT" } },
+        },
       },
     },
   },
@@ -71,7 +79,7 @@ local mod = {
   id = "starter_picker",
   game = game,
   find = function(_, id)
-    if id == "gen1_randomizer" then return { id = id, version = "0.2.0", exports = {} } end
+    if id == "pokemon_randomizer" then return { id = id, version = "1.0.0", exports = {} } end
     return nil
   end,
   content = {
@@ -97,7 +105,13 @@ local mod = {
     end,
   },
   hooks = {
-    wrap = function(_, name, fn) callbacks.hooks[name] = fn end,
+    wrap = function(_, name, fn, priority)
+      if priority then
+        callbacks.hooks[name] = { fn = fn, priority = priority }
+      else
+        callbacks.hooks[name] = fn
+      end
+    end,
   },
 }
 
@@ -111,6 +125,8 @@ assert(callbacks.schema[4].key == "max_starter_dvs", "max player starter DVs opt
 assert(callbacks.events["pokemon.before_give"].priority == -10000,
   "starter gift override did not register after Randomizer")
 assert(callbacks.events["mod.options_changed"], "live selector-change listener missing")
+assert(callbacks.hooks["trainer.party"].priority == -10000,
+  "rival projection did not register after the Randomizer")
 
 callbacks.mapContribution.talk.TEXT_OAKSLAB_CHARMANDER_POKE_BALL(
   game, overworld, {}, function() end)
@@ -131,13 +147,14 @@ assert(game.save.party[1].dvs.attack == 15 and game.save.party[1].dvs.defense ==
   "max-DV option did not apply maximum DVs to the player starter")
 assert(modSave.pending_max_starter_dvs == nil,
   "pending player max-DV marker was not cleared after the starter was created")
-assert(modSave.gen1_randomizer_starter_override_active == true,
+assert(modSave.pokemon_randomizer_starter_override_active == true,
   "confirmed Randomizer starter mode was not detected")
 assert(modSave.pending_starter_slot == nil, "pending starter state was not cleaned up")
 
 -- An installed Randomizer in VANILLA mode is detected as inactive. The named
 -- ball choice still works normally and does not rely on Randomizer behavior.
-game.save.modData.gen1_randomizer.randomizer_mode = "vanilla"
+game.save.modData.pokemon_randomizer.enabled = false
+  game.save.modData.pokemon_randomizer.settings.starters = "off"
 modSave.pending_starter_slot = "LEFT"
 local vanillaGift = {
   ctx = { game = game, overworld = overworld, save = game.save },
@@ -145,10 +162,11 @@ local vanillaGift = {
 }
 callbacks.events["pokemon.before_give"].fn(vanillaGift)
 assert(vanillaGift.species == "MEWTWO", "vanilla-mode gift did not use configured ball")
-assert(modSave.gen1_randomizer_starter_override_active == false,
+assert(modSave.pokemon_randomizer_starter_override_active == false,
   "Randomizer VANILLA mode was incorrectly reported as active")
 modSave.pending_starter_slot = nil
-game.save.modData.gen1_randomizer.randomizer_mode = "logic"
+game.save.modData.pokemon_randomizer.enabled = true
+  game.save.modData.pokemon_randomizer.settings.starters = "random"
 
 -- Once Oak has given the starter, changing its named selector rebuilds the
 -- party record at the same level with valid species-derived fields.
@@ -182,17 +200,17 @@ local originalParty = {
     dvs = { hp = 1, attack = 1, defense = 1, speed = 1, special = 1 },
   },
 }
-local projected = callbacks.hooks["trainer.party"](
+local projected = callbacks.hooks["trainer.party"].fn(
   function(_, _, party) return party end, "OPP_RIVAL1", 1, originalParty)
-assert(projected[#projected].species == "MEW", "rival party 1 did not use the Squirtle ball")
+assert(projected[#projected].species == "MEW", "rival party 1 did not use the current Randomizer-selected rival ball")
 assert(originalParty[#originalParty].species == "SQUIRTLE", "vanilla party was mutated")
 assert(projected[#projected].dvs.attack == 1 and projected[#projected].dvs.hp == 1,
   "max player starter DVs leaked into the rival party projection")
 
--- The selectors are read live after loading: changing Squirtle Ball makes the
--- next rival team projection use the changed selection without restarting.
+-- With current Randomizer starter mode active, changing the Starter Picker's
+-- rival ball must change the projected rival species without restarting.
 optionValues.squirtle_ball = "BULBASAUR"
-local updated = callbacks.hooks["trainer.party"](
+local updated = callbacks.hooks["trainer.party"].fn(
   function(_, _, party) return party end, "OPP_RIVAL1", 1, originalParty)
 assert(updated[#updated].species == "BULBASAUR", "post-load selector change was not read live")
 

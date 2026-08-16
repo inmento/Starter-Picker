@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.5 — Current Randomizer Rival Compatibility
+
+Starter Picker now integrates with the current `pokemon_randomizer` save namespace instead of the obsolete `gen1_randomizer` compatibility fields. When the Randomizer’s saved Gen 1 starter mode is active, rival parties use the Randomizer’s saved physical starter-slot mapping while resolving the rival species from the Starter Picker selections. This keeps the player’s three selected ball species and the rival’s counter-pick relationship aligned even when the Randomizer generated a different starter set.
+
+The Gen 1 rival projection now runs after the Randomizer’s trainer-party projection and still copies the party without changing rival-only DVs, moves, levels, or held-item data. Gold behavior is unchanged.
+
 ## 1.0.4 — New Game Settings Reset
 
 Starter Picker now resets its ball selectors and player-only stat/item settings to their native defaults when a new save is created. The mod manager stores options globally, so the previous build could silently carry a prior run’s starter selections into the next run. Each new game now starts clean, while settings can still be configured normally before Oak’s Lab or Elm’s Lab.

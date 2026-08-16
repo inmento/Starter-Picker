@@ -65,10 +65,10 @@ return function(mod)
   local PENDING_STARTER_SLOT_KEY = "pending_starter_slot"
   local STARTER_SLOT_KEY = "received_starter_slot"
   local STARTER_SPECIES_KEY = "received_starter_species"
-  local RANDOMIZER_ID = isGen2() and "gen2_randomizer" or "gen1_randomizer"
+  local RANDOMIZER_ID = isGen2() and "gen2_randomizer" or "pokemon_randomizer"
   local RANDOMIZER_OVERRIDE_KEY = isGen2()
     and "gen2_randomizer_starter_override_active"
-    or "gen1_randomizer_starter_override_active"
+    or "pokemon_randomizer_starter_override_active"
   local MAX_STARTER_DVS_OPTION = "max_starter_dvs"
   local PENDING_MAX_STARTER_DVS_KEY = "pending_max_starter_dvs"
   local MAX_STARTER_DVS_APPLIED_KEY = "starter_max_dvs_applied"
@@ -216,9 +216,10 @@ return function(mod)
     end
     if not installed then return false end
 
-    local mode = tostring(state.randomizer_mode or "vanilla")
-    return state.startup_config_confirmed == true
-      and (mode == "logic" or mode == "nologic")
+    local settings = type(state.settings) == "table" and state.settings or {}
+    local starterMode = tostring(settings.starters or "off")
+    return state.enabled == true
+      and (starterMode == "random" or starterMode == "type_triad")
   end
 
   local function chosenStarterSlot(flags)
@@ -903,13 +904,28 @@ return function(mod)
     end
 
     local slotName = RIVAL_SLOT_BY_PARTY_OFFSET[((partyIndex - 1) % 3) + 1]
-    local species = selectedSpecies(mod.game, SLOTS[slotName])
-    if not validSpecies(mod.game, species) then return party end
+    local game = mod.game or lastGame
+    local species = selectedSpecies(game, SLOTS[slotName])
+    if randomizerStarterRandomizationActive(game) then
+      local state = game and game.save and game.save.modData
+        and game.save.modData[RANDOMIZER_ID]
+      local mappings = state and state.mappings
+      local starters = mappings and mappings.starters
+      local flags = mappings and mappings.starterFlags
+      local offsets = flags and flags.partyOffsetSlots
+      local randomizerSlot = offsets and offsets[((partyIndex - 1) % 3) + 1]
+      local offer = randomizerSlot and starters and starters[randomizerSlot]
+      local rivalSlot = offer and offer.rivalSlot
+      local rivalOffer = rivalSlot and SLOTS[rivalSlot]
+      local rival = rivalOffer and selectedSpecies(game, rivalOffer)
+      if type(rival) == "string" and validSpecies(game, rival) then species = rival end
+    end
+    if not validSpecies(game, species) then return party end
 
     local replaced = copyParty(party)
     -- Rival branches place their starter-line Pokémon in the last party slot.
     -- Keep the original levels, moves, and the rest of each vanilla party.
     replaced[#replaced].species = species
     return replaced
-  end)
+  end, -10000)
 end
