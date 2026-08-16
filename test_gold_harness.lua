@@ -3,6 +3,9 @@ local callbacks, storage = { hooks = {}, events = {} }, {}
 package.preload["src.core.GameVersion"] = function()
   return { get = function() return "gold" end }
 end
+package.preload["src.render.TextBox"] = function()
+  return { new = function(_, text) return { text=text } end }
+end
 package.preload["src.battle.gen2.Mon"] = function()
   return {
     new = function(_, species, level, opts)
@@ -26,6 +29,11 @@ local optionValues = {
   chikorita_ball = "CHIKORITA",
   gold_player_dv_mode = "MAX",
   gold_held_item = "BERRY_JUICE",
+  starter_trade_evolution_42 = false,
+  lock_confirmed_starter = false,
+  starter_status = false,
+  rival_preview = false,
+  game_corner_exclusives = false,
 }
 local species = {
   CHIKORITA = { dex = 152, name = "CHIKORITA", index = 152, types = { "GRASS" } },
@@ -43,8 +51,10 @@ local items = {
 local byIndex = {}
 for id, def in pairs(species) do byIndex[def.index] = id end
 
+local openedText
 local game = {
   data = { gen2Maps = {}, pokemon = species, items = items, moves = {}, gen2Text = {} },
+  stack = { push = function(_, box) openedText = box and box.text end },
   save = {
     party = {}, pokedex = { seen = {}, caught = {} },
     options = { modOptions = { starter_picker = optionValues } },
@@ -72,10 +82,11 @@ local mod = {
 }
 
 assert(loadfile("main.lua"))()(mod)
-assert(#callbacks.schema == 5, "current Gold option schema was not registered")
+assert(#callbacks.schema == 10, "expanded Gold starter option schema was not registered")
 assert(callbacks.schema[1].key == "cyndaquil_ball", "Gold left-ball selector missing")
-assert(callbacks.schema[4].key == "gold_player_dv_mode", "Gold player-DV mode missing")
-assert(callbacks.schema[5].key == "gold_held_item", "Gold held-item selector missing")
+assert(callbacks.schema[4].key == "starter_trade_evolution_42", "shared trade fallback option missing")
+assert(callbacks.schema[9].key == "gold_player_dv_mode", "Gold player-DV mode missing")
+assert(callbacks.schema[10].key == "gold_held_item", "Gold held-item selector missing")
 
 local previewPicture, previewCry
 callbacks.hooks["script.command"](function(_, _, _, finalCmd)
@@ -113,6 +124,20 @@ assert(game.save.pokedex.seen.MEW and game.save.pokedex.caught.MEW,
   "Gold synchronized starter did not update Pokédex ownership")
 assert(optionValues.cyndaquil_ball == "MEW",
   "Gold Randomizer-transformed starter was not copied into Starter Picker options")
+assert(storage.finalized_starter_selection and storage.finalized_starter_selection.species == "MEW",
+  "Gold finalized starter record was not stored")
+callbacks.events["mod.options_changed"]({ mod="starter_picker", key="starter_status", value=true })
+assert(openedText and openedText:find("CONFIRMED LEFT", 1, true),
+  "Gold starter status did not report the finalized selection")
+callbacks.events["mod.options_changed"]({ mod="starter_picker", key="rival_preview", value=true })
+assert(openedText and openedText:find("RIVAL", 1, true), "Gold rival preview did not open")
+optionValues.gold_held_item = "RECOVERY"
+callbacks.events["mod.options_changed"]({ mod="starter_picker", key="gold_held_item", value="RECOVERY" })
+assert(game.save.party[1].item == "BERRY" or game.save.party[1].item == "BERRY_JUICE",
+  "Gold recovery held-item mode did not choose a safe recovery item")
+optionValues.gold_held_item = "NONE"
+callbacks.events["mod.options_changed"]({ mod="starter_picker", key="gold_held_item", value="NONE" })
+assert(game.save.party[1].item == nil, "Gold no-item starter mode did not remove the held item")
 
 local rivalParty = { { species = "CYNDAQUIL", level = 5 } }
 local projected = callbacks.hooks["trainer.party"](

@@ -6,13 +6,15 @@ Starter Picker lets players choose starters by original ball position in Gen 1 a
 
 ## Install
 
-Import the `starter_picker-1.0.6.zip` release archive through Gen 1 Recomp’s **Import mod .zip** action. The archive extracts directly to a `starter_picker/` folder containing `manifest.json` and `main.lua`.
+Import the `starter_picker-1.0.7.zip` release archive through Gen 1 Recomp’s **Import mod .zip** action. The archive extracts directly to a `starter_picker/` folder containing `manifest.json` and `main.lua`.
 
 ## Features
 
-The three starter selectors are live settings. Configure them before receiving a starter, or update the selector matching the player’s chosen ball later to rebuild the tracked player starter. When a supported Gen 1 or Gold Randomizer has active starter randomization, Starter Picker synchronizes its selectors with the Randomizer’s actual assignments when those assignments are available. A deliberate selector change afterward becomes the player’s authority for that save. Player-only stat and held-item options never modify the rival’s DVs or held item.
+The three starter selectors are live settings. Configure them before receiving a starter, or update the selector matching the player’s chosen ball later to rebuild the tracked player starter. Before accepting a Gen 1 ball, Starter Picker shows a compact species-and-type summary; Gold updates Elm’s prompt with the same information. **STARTER STATUS** and **RIVAL PREVIEW** are read-only views for checking the confirmed selection and matchup.
 
-Gen 1 covers Oak’s Lab in Red and Blue with all 151 species, including Mew. **MAX PLAYER STARTER DVS** applies only to the player’s selected starter and now has both a post-gift and script-completion safeguard. For faster selection, open **START > OPTIONS** and choose **PICK LEFT BALL**, **PICK MIDDLE BALL**, or **PICK RIGHT BALL**. Press A to browse all 151 species, hold Up or Down to scroll, use Left or Right to jump ten entries, press A to confirm, or B to cancel. Pokémon Yellow’s distinct Pikachu/Eevee sequence is intentionally unchanged.
+When a supported Gen 1 or Gold Randomizer has active starter randomization, Starter Picker synchronizes its selectors with the Randomizer’s actual assignments when those assignments are available. A deliberate selector change afterward becomes the player’s authority for that save. **LOCK CONFIRMED STARTER** optionally freezes the received player starter and the saved three-ball configuration so later option changes cannot silently rebuild the player or rival starter. Player-only stat and held-item options never modify the rival’s DVs or held item.
+
+Gen 1 covers Oak’s Lab in Red and Blue with all 151 species, including Mew. **MAX PLAYER STARTER DVS** applies only to the player’s selected starter and now has both a post-gift and script-completion safeguard. For faster selection, open **START > OPTIONS** and choose **PICK LEFT BALL**, **PICK MIDDLE BALL**, or **PICK RIGHT BALL**. Press A to browse all 151 species, hold Up or Down to scroll, use Left or Right to jump ten entries, press A to confirm, or B to cancel. Pokémon Yellow’s distinct Pikachu/Eevee sequence is intentionally unchanged. **STARTER TRADE EVO AT 42** is optional and applies only to the confirmed player starter when it has an otherwise unresolved native trade evolution; it never changes other party Pokémon.
 
 ## Gold
 
@@ -20,7 +22,11 @@ Gold covers Elm’s Lab with all 251 species, including Mew and Celebi. Cyndaqui
 
 Gold provides player-only DV modes: preserve the native DVs, apply maximum DVs, generate random DVs, or apply a legal Shiny DV spread. Shiny mode sets Defense, Speed, and Special to 10 and selects a valid Attack DV, keeping the resulting starter shiny without touching the rival.
 
-Gold starter held-item support offers Vanilla, named, and saved weighted results. Weighted selection may deliberately choose no held item, a lower-value item, a useful held item, or a premium result. Key items, HMs, non-tossable items, and invalid records are excluded.
+Gold starter held-item support offers Vanilla, named, no-item, random-safe, recovery-oriented, and type-supporting choices. The generated modes use stable saved results for the current selection and exclude key items, HMs, machines, mail, non-tossable items, and invalid records.
+
+## Game Corner exclusives
+
+In Gen 1, **GAME CORNER EXCLUSIVES** optionally repurposes the third native Celadon prize vendor into a separate coin-priced broker for base Pokémon covering the Red, Blue, and Yellow version-exclusive families. The first two vendors remain unchanged. The broker uses normal party/box capacity behavior, requires the Coin Case, and falls through to the original vendor when the option is disabled.
 
 ## Randomizer compatibility
 
@@ -28,4 +34,6 @@ Starter Picker supports the authorized Gen 1 and Gold Randomizer compatibility p
 
 ## Compatibility
 
-Starter Picker targets Mod API 2 and supports Gen 1 and Gold. It uses the engine’s active GameVersion to select the correct Gen 1 or Gold starter branch before registering generation-specific behavior. See [CHANGELOG.md](CHANGELOG.md) for the complete release feature list, including player-only DV modes and held-item behavior. See [CREDITS.md](CREDITS.md) for Randomizer compatibility credit.
+Starter Picker targets Mod API 2 and supports Gen 1 and Gold. It uses the engine’s active GameVersion to select the correct Gen 1 or Gold starter branch before registering generation-specific behavior.
+
+**Crystal 251 is optional.** In Red, Blue, and Yellow, Starter Picker reads Crystal 251’s merged live species and evolution data when the overhaul is active. It does not require Crystal 251, and it preserves Crystal’s imported data, evolution rules, and map content. Crystal’s existing trade-evolution conversions take precedence over the optional Starter Picker level-42 fallback. See [CHANGELOG.md](CHANGELOG.md) for the complete release feature list, including player-only DV modes and held-item behavior. See [CREDITS.md](CREDITS.md) for Randomizer compatibility credit.

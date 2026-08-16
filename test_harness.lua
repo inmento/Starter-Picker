@@ -2,11 +2,19 @@ local callbacks = { hooks = {}, events = {}, mapContribution = nil }
 package.preload["src.core.GameVersion"] = function()
   return { get = function() return "red" end }
 end
+package.preload["src.render.TextBox"] = function()
+  return { new = function(_, text) return { text=text } end }
+end
 local optionValues = {
   charmander_ball = "MEWTWO",
   squirtle_ball = "MEW",
   bulbasaur_ball = "BULBASAUR",
   max_starter_dvs = true,
+  starter_trade_evolution_42 = true,
+  lock_confirmed_starter = true,
+  starter_status = false,
+  rival_preview = false,
+  game_corner_exclusives = false,
 }
 local modSave = {}
 local species = {
@@ -15,6 +23,8 @@ local species = {
   BULBASAUR = { dex = 1, name = "BULBASAUR", types = { "BUG" } },
   MEW = { dex = 151, name = "MEW", types = { "FIRE" } },
   MEWTWO = { dex = 150, name = "MEWTWO", types = { "PSYCHIC" } },
+  MACHOKE = { dex = 67, name = "MACHOKE", types = { "FIGHTING" }, evolutions = { { method="TRADE", species="MACHAMP" } } },
+  MACHAMP = { dex = 68, name = "MACHAMP", types = { "FIGHTING" } },
 }
 
 local game = {
@@ -38,6 +48,7 @@ local game = {
     },
   },
   data = { pokemon = species },
+  stack = { push = function(_, box) game.lastText = box and box.text end },
 }
 local recordedRows
 local emittedGift
@@ -80,14 +91,19 @@ local mod = {
   game = game,
   find = function(_, id)
     if id == "pokemon_randomizer" then return { id = id, version = "1.0.0", exports = {} } end
+    if id == "CRYSTAL_251" then return { id = id, exports = { dexSize=251 } } end
     return nil
   end,
   content = {
-    pokemon = { each = function() return pairs(species) end },
+    pokemon = {
+      each = function() return pairs(species) end,
+      patch = function(_, id, patch) species[id].evolutions = patch.evolutions end,
+    },
+    evolution_methods = { register = function(_, id, row) callbacks.evolutionMethod = { id=id, row=row } end },
     map_scripts = {
       register = function(_, mapId, contribution)
-        assert(mapId == "OAKS_LAB")
-        callbacks.mapContribution = contribution
+        callbacks.mapContributions = callbacks.mapContributions or {}
+        callbacks.mapContributions[mapId] = contribution
       end,
     },
   },
@@ -117,18 +133,23 @@ local mod = {
 
 local entry = assert(loadfile("main.lua"))
 entry()(mod)
-assert(#callbacks.schema == 4, "three picker options and the max-DV toggle were not defined")
+assert(#callbacks.schema == 9, "common starter controls and the max-DV toggle were not defined")
 assert(callbacks.schema[1].key == "charmander_ball", "Charmander Ball option missing")
 assert(callbacks.schema[2].key == "squirtle_ball", "Squirtle Ball option missing")
 assert(callbacks.schema[3].key == "bulbasaur_ball", "Bulbasaur Ball option missing")
-assert(callbacks.schema[4].key == "max_starter_dvs", "max player starter DVs option missing")
+assert(callbacks.schema[4].key == "starter_trade_evolution_42", "starter-only trade evolution option missing")
+assert(callbacks.schema[9].key == "max_starter_dvs", "max player starter DVs option missing")
+assert(callbacks.evolutionMethod and callbacks.evolutionMethod.id == "STARTER_TRADE_42",
+  "starter-only level-42 evolution method was not registered")
+assert(callbacks.mapContributions.OAKS_LAB and callbacks.mapContributions.GAME_CORNER_PRIZE_ROOM,
+  "Oak selection and optional Game Corner registrations were not both installed")
 assert(callbacks.events["pokemon.before_give"].priority == -10000,
   "starter gift override did not register after Randomizer")
 assert(callbacks.events["mod.options_changed"], "live selector-change listener missing")
 assert(callbacks.hooks["trainer.party"].priority == -10000,
   "rival projection did not register after the Randomizer")
 
-callbacks.mapContribution.talk.TEXT_OAKSLAB_CHARMANDER_POKE_BALL(
+callbacks.mapContributions.OAKS_LAB.talk.TEXT_OAKSLAB_CHARMANDER_POKE_BALL(
   game, overworld, {}, function() end)
 local received, rivalReceived
 for _, row in ipairs(recordedRows) do
@@ -156,6 +177,7 @@ assert(modSave.pending_starter_slot == nil, "pending starter state was not clean
 -- ball choice still works normally and does not rely on Randomizer behavior.
 game.save.modData.pokemon_randomizer.enabled = false
   game.save.modData.pokemon_randomizer.settings.starters = "off"
+optionValues.lock_confirmed_starter = false
 optionValues.charmander_ball = "MEWTWO"
 modSave.pending_starter_slot = "LEFT"
 local vanillaGift = {
@@ -194,6 +216,15 @@ assert(game.save.party[1].stats and game.save.party[1].stats.hp,
 assert(game.save.party[1].dvs.attack == 15 and game.save.party[1].dvs.hp == 15,
   "post-Oak species replacement did not preserve the player-only maximum DVs")
 assert(modSave.received_starter_species == "MEW", "starter tracking was not updated")
+
+-- Confirmation locking keeps the already accepted starter authoritative even
+-- if a later menu change reaches the option store.
+optionValues.lock_confirmed_starter = true
+optionValues.charmander_ball = "MEWTWO"
+callbacks.events["mod.options_changed"].fn({ mod="starter_picker", key="charmander_ball", value="MEWTWO" })
+assert(game.save.party[1].species == "MEW", "confirmed starter lock allowed a later selector rewrite")
+optionValues.lock_confirmed_starter = false
+optionValues.charmander_ball = "MEW"
 
 local originalParty = {
   { species = "RATTATA", level = 5 },
