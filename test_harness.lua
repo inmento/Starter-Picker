@@ -1,4 +1,7 @@
 local callbacks = { hooks = {}, events = {}, mapContribution = nil }
+package.preload["src.core.GameVersion"] = function()
+  return { get = function() return "red" end }
+end
 local optionValues = {
   charmander_ball = "MEWTWO",
   squirtle_ball = "MEW",
@@ -15,7 +18,9 @@ local species = {
 }
 
 local game = {
+  mods = { modOptions = { starter_picker = optionValues } },
   save = {
+    options = { modOptions = { starter_picker = optionValues } },
     flags = { EVENT_FOLLOWED_OAK_INTO_LAB = true },
     modData = {
       gen1_randomizer = {
@@ -96,7 +101,7 @@ local mod = {
   },
 }
 
-local entry = assert(loadfile("/home/ubuntu/starter_picker/main.lua"))
+local entry = assert(loadfile("main.lua"))
 entry()(mod)
 assert(#callbacks.schema == 4, "three picker options and the max-DV toggle were not defined")
 assert(callbacks.schema[1].key == "charmander_ball", "Charmander Ball option missing")
@@ -213,4 +218,16 @@ callbacks.events["screen.pushed"].fn({ state = { screenId = "NicknamePrompt" } }
 assert(game.save.party[1].dvs.attack == 2 and game.save.party[1].dvs.hp == 2,
   "disabled max-DV option incorrectly rewrote the player starter's DVs")
 
-print("starter picker named live-selector harness: valid")
+-- A New Game must not inherit a prior run's global selector settings.
+optionValues.charmander_ball = "MEWTWO"
+optionValues.squirtle_ball = "MEW"
+optionValues.bulbasaur_ball = "MEW"
+optionValues.max_starter_dvs = true
+callbacks.hooks["save.new_game"](function(save) return save end, game.save)
+assert(optionValues.charmander_ball == "CHARMANDER"
+  and optionValues.squirtle_ball == "SQUIRTLE"
+  and optionValues.bulbasaur_ball == "BULBASAUR"
+  and optionValues.max_starter_dvs == false,
+  "New Game did not reset carried-over Starter Picker settings")
+
+print("starter picker named live-selector, player-only DV, and New Game reset harness: valid")

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.4 — New Game Settings Reset
+
+Starter Picker now resets its ball selectors and player-only stat/item settings to their native defaults when a new save is created. The mod manager stores options globally, so the previous build could silently carry a prior run’s starter selections into the next run. Each new game now starts clean, while settings can still be configured normally before Oak’s Lab or Elm’s Lab.
+
+This change covers Gen 1 ball choices and maximum DVs, plus Gold ball choices, player DV mode, and held-item selection. Existing saves retain their already-received starter behavior.
+
 ## 1.0.3 — Gen 2 Detection Stability
 
 Starter Picker now reads the engine’s active `GameVersion.get()` value before registering starter options, hooks, and UI. This makes the Gen 1 Oak’s Lab branch and Gold Elm’s Lab branch deterministic when Red, Blue, Yellow, or Gold is loaded, instead of inferring the generation from data-table shape.

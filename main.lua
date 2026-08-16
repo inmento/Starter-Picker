@@ -160,6 +160,35 @@ return function(mod)
   end
   mod.options:define(optionDefs)
 
+  -- Mod options are stored outside individual save files. Reset the selector
+  -- rows at New Game so the next run starts from native starter settings,
+  -- rather than inheriting selections made for a previous save.
+  local STARTER_OPTION_DEFAULTS = {
+    [SLOTS.LEFT.option] = SLOTS.LEFT.default,
+    [SLOTS.MIDDLE.option] = SLOTS.MIDDLE.default,
+    [SLOTS.RIGHT.option] = SLOTS.RIGHT.default,
+  }
+  if isGen2() then
+    STARTER_OPTION_DEFAULTS[GOLD_DV_MODE_OPTION] = "PRESERVE"
+    STARTER_OPTION_DEFAULTS[GOLD_HELD_ITEM_OPTION] = "VANILLA"
+  else
+    STARTER_OPTION_DEFAULTS[MAX_STARTER_DVS_OPTION] = false
+  end
+
+  local function resetStarterOptionsForNewGame(game, save)
+    local stores = {
+      game and game.mods and game.mods.modOptions,
+      game and game.options and game.options.modOptions,
+      save and save.options and save.options.modOptions,
+    }
+    for _, store in pairs(stores) do
+      local bucket = store and store[mod.id]
+      if bucket then
+        for key, value in pairs(STARTER_OPTION_DEFAULTS) do bucket[key] = value end
+      end
+    end
+  end
+
   local function validSpecies(game, speciesId)
     return type(speciesId) == "string"
       and game and game.data and game.data.pokemon
@@ -494,6 +523,12 @@ return function(mod)
       mod.save:set(STARTER_SPECIES_KEY, species)
     end
   end
+
+  mod.hooks:wrap("save.new_game", function(next, save)
+    save = next(save)
+    resetStarterOptionsForNewGame(mod.game or lastGame, save)
+    return save
+  end)
 
   mod.events:on("game.ready", function(event)
     lastGame = (event and event.game) or lastGame or mod.game
