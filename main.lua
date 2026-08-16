@@ -7,9 +7,12 @@
 -- choosing right gives the rival the configured left-ball Pokémon.
 
 return function(mod)
-  local function isGen2(game)
-    game = game or mod.game
-    return game and game.data and game.data.gen2Maps ~= nil
+  -- The launcher selects the game before any mod entry executes. Use the
+  -- engine's version source of truth rather than inspecting game data shape.
+  local GameVersion = require("src.core.GameVersion")
+  local playing = GameVersion.get()
+  local function isGen2(_)
+    return playing == "gold"
   end
 
   local GEN1_SLOTS = {

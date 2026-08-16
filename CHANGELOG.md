@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3 — Gen 2 Detection Stability
+
+Starter Picker now reads the engine’s active `GameVersion.get()` value before registering starter options, hooks, and UI. This makes the Gen 1 Oak’s Lab branch and Gold Elm’s Lab branch deterministic when Red, Blue, Yellow, or Gold is loaded, instead of inferring the generation from data-table shape.
+
+No starter selection, rival counter-pick, DV, held-item, Gold Elm dialogue, or Randomizer compatibility behavior changed in this update.
+
 ## 1.0.2 — Gen 1 Starter Controls and Maximum-DV Fix
 
 The Gen 1 **MAX PLAYER STARTER DVS** option now applies at both Oak's Lab's post-gift screen boundary and script completion. This keeps the change limited to the player starter while covering Oak's Lab presentation paths that previously missed the update.

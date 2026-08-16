@@ -1,7 +1,7 @@
 {
   "id": "starter_picker",
   "name": "Starter Picker",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "entry": "main.lua",
   "api": 2,
   "category": "GAMEPLAY",
