@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.10 — Shedinja optional-provider order repair
+
+Gen 1 Shedinja’s package ID is now lowercase (`gen1_shedinja`). Starter Picker 1.0.9 still named its optional ordering relationship with the previous uppercase ID, so the loader could start Starter Picker before Shedinja and build the selector at the native #151 ceiling. This release updates that **optional** relationship to `gen1_shedinja`.
+
+Shedinja is still not a required dependency. With Gen 1 Shedinja enabled, Starter Picker now reliably builds after the provider and exposes **#152 SHEDINJA**. Without it, Starter Picker remains a normal Gen 1/Gold starter selector with its native choices.
+
 ## 1.0.9 — Merged live-data compatibility
 
 Starter Picker now builds its Gen 1 selection list from the **effective merged Pokédex range** rather than permanently stopping at #151. It only lists species records that are actually present in the active merged registry and does not overwrite another mod’s authored species data.

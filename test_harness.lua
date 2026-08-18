@@ -92,11 +92,11 @@ local mod = {
   game = game,
   find = function(_, id)
     if id == "pokemon_randomizer" then return { id = id, version = "1.0.0", exports = {} } end
-    if id == "CRYSTAL_251" then return { id = id, exports = { dexSize=251 } } end
+    if id == "gen1_shedinja" then return { id = id, exports = { dexSize=152 } } end
     return nil
   end,
   content = {
-    constants = { get = function(_, id) return id == "dexSize" and 251 or nil end },
+    constants = { get = function(_, id) return id == "dexSize" and 152 or nil end },
     pokemon = {
       each = function() return pairs(species) end,
       patch = function(_, id, patch) species[id].evolutions = patch.evolutions end,
@@ -288,4 +288,4 @@ assert(optionValues.charmander_ball == "CHARMANDER"
   and optionValues.max_starter_dvs == false,
   "New Game did not reset carried-over Starter Picker settings")
 
-print("starter picker named live-selector, player-only DV, and New Game reset harness: valid")
+print("starter picker named live-selector, lowercase Shedinja merge, player-only DV, and New Game reset harness: valid")
