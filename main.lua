@@ -99,12 +99,29 @@ return function(mod)
     [SLOTS.RIGHT.option] = "RIGHT",
   }
 
+  -- Read the effective, merged dex range rather than assuming every Gen 1
+  -- game is limited to the native 151. This never creates species data; it
+  -- only exposes valid records another enabled content provider has supplied.
+  local function liveDexLimit()
+    local fallback = isGen2() and 251 or 151
+    local constants = mod.content and mod.content.constants
+    if type(constants) == "table" and type(constants.get) == "function" then
+      local ok, value = pcall(constants.get, constants, "dexSize")
+      value = ok and tonumber(value) or nil
+      if value and value >= fallback then return math.floor(value) end
+    end
+    if crystal251Active() then return math.max(fallback, 251) end
+    return fallback
+  end
+
   local function choiceRows()
     local rows = {}
+    local maxDex = liveDexLimit()
     for speciesId, pokemon in mod.content.pokemon:each() do
-      local maxDex = isGen2() and 251 or 151
-      if type(pokemon.dex) == "number" and pokemon.dex >= 1 and pokemon.dex <= maxDex then
-        rows[#rows + 1] = { string.format("%03d %s", pokemon.dex, pokemon.name), speciesId }
+      local dex = tonumber(type(pokemon) == "table" and pokemon.dex)
+      if type(speciesId) == "string" and dex and dex >= 1 and dex <= maxDex then
+        local name = type(pokemon.name) == "string" and pokemon.name or speciesId
+        rows[#rows + 1] = { string.format("%03d %s", dex, name), speciesId }
       end
     end
     table.sort(rows, function(a, b) return a[1] < b[1] end)

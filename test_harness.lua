@@ -23,6 +23,7 @@ local species = {
   BULBASAUR = { dex = 1, name = "BULBASAUR", types = { "BUG" } },
   MEW = { dex = 151, name = "MEW", types = { "FIRE" } },
   MEWTWO = { dex = 150, name = "MEWTWO", types = { "PSYCHIC" } },
+  SHEDINJA = { dex = 152, name = "SHEDINJA", types = { "BUG", "GHOST" } },
   MACHOKE = { dex = 67, name = "MACHOKE", types = { "FIGHTING" }, evolutions = { { method="TRADE", species="MACHAMP" } } },
   MACHAMP = { dex = 68, name = "MACHAMP", types = { "FIGHTING" } },
 }
@@ -95,6 +96,7 @@ local mod = {
     return nil
   end,
   content = {
+    constants = { get = function(_, id) return id == "dexSize" and 251 or nil end },
     pokemon = {
       each = function() return pairs(species) end,
       patch = function(_, id, patch) species[id].evolutions = patch.evolutions end,
@@ -137,6 +139,11 @@ assert(#callbacks.schema == 9, "common starter controls and the max-DV toggle we
 assert(callbacks.schema[1].key == "charmander_ball", "Charmander Ball option missing")
 assert(callbacks.schema[2].key == "squirtle_ball", "Squirtle Ball option missing")
 assert(callbacks.schema[3].key == "bulbasaur_ball", "Bulbasaur Ball option missing")
+local mergedChoiceFound = false
+for _, choice in ipairs(callbacks.schema[1].choices or {}) do
+  if choice[2] == "SHEDINJA" then mergedChoiceFound = true break end
+end
+assert(mergedChoiceFound, "merged Shedinja #152 was not exposed in the Gen 1 picker")
 assert(callbacks.schema[4].key == "starter_trade_evolution_42", "starter-only trade evolution option missing")
 assert(callbacks.schema[9].key == "max_starter_dvs", "max player starter DVs option missing")
 assert(callbacks.evolutionMethod and callbacks.evolutionMethod.id == "STARTER_TRADE_42",
