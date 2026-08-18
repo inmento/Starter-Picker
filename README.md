@@ -6,7 +6,7 @@ Starter Picker lets players choose starters by original ball position in Gen 1 a
 
 ## Install
 
-Import the `starter_picker-1.0.7.zip` release archive through Gen 1 Recomp’s **Import mod .zip** action. The archive extracts directly to a `starter_picker/` folder containing `manifest.json` and `main.lua`.
+Import the `starter_picker-1.0.8.zip` release archive through Gen 1 Recomp’s **Import mod .zip** action. The archive extracts directly to a `starter_picker/` folder containing `manifest.json` and `main.lua`.
 
 ## Features
 
