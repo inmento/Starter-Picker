@@ -168,41 +168,41 @@ return function(mod)
   local optionDefs = {
     {
       key = SLOTS.LEFT.option,
-      label = isGen2() and "CYNDAQUIL BALL" or "CHARMANDER BALL",
+      label = isGen2() and "CYNDAQUIL" or "CHARMANDER",
       type = "choice", default = SLOTS.LEFT.default, choices = CHOICES,
     },
     {
       key = SLOTS.MIDDLE.option,
-      label = isGen2() and "TOTODILE BALL" or "SQUIRTLE BALL",
+      label = isGen2() and "TOTODILE" or "SQUIRTLE",
       type = "choice", default = SLOTS.MIDDLE.default, choices = CHOICES,
     },
     {
       key = SLOTS.RIGHT.option,
-      label = isGen2() and "CHIKORITA BALL" or "BULBASAUR BALL",
+      label = isGen2() and "CHIKORITA" or "BULBASAUR",
       type = "choice", default = SLOTS.RIGHT.default, choices = CHOICES,
     },
     {
-      key = TRADE_FALLBACK_OPTION, label = "TRADE EVO AT 42",
+      key = TRADE_FALLBACK_OPTION, label = "TRADE @42",
       type = "toggle", default = false,
     },
     {
-      key = SELECTION_LOCK_OPTION, label = "LOCK STARTER",
+      key = SELECTION_LOCK_OPTION, label = "LOCK",
       type = "toggle", default = false,
     },
     {
-      key = STATUS_ACTION_OPTION, label = "STARTER STATUS", type = "toggle", default = false,
+      key = STATUS_ACTION_OPTION, label = "STATUS", type = "toggle", default = false,
     },
     {
-      key = RIVAL_ACTION_OPTION, label = "RIVAL PREVIEW", type = "toggle", default = false,
+      key = RIVAL_ACTION_OPTION, label = "RIVAL", type = "toggle", default = false,
     },
     {
-      key = GAME_CORNER_EXCLUSIVES_OPTION, label = "CORNER EXCLUSIVES",
+      key = GAME_CORNER_EXCLUSIVES_OPTION, label = "CORNER",
       type = "toggle", default = false,
     },
   }
   if isGen2() then
     optionDefs[#optionDefs + 1] = {
-      key = GOLD_DV_MODE_OPTION, label = "PLAYER DV MODE", type = "choice",
+      key = GOLD_DV_MODE_OPTION, label = "DV MODE", type = "choice",
       default = "PRESERVE",
       choices = {
         { "PRESERVE", "PRESERVE" }, { "MAX", "MAX" },

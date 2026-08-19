@@ -254,6 +254,28 @@ local updated = callbacks.hooks["trainer.party"].fn(
   function(_, _, party) return party end, "OPP_RIVAL1", 1, originalParty)
 assert(updated[#updated].species == "MEW", "post-load selector change was not read live")
 
+-- Oak Lab's coordinate-triggered first rival battle invokes OPP_RIVAL1 with
+-- party index 1/2/3. A Shedinja player starter must therefore receive the
+-- same live counter-pick projection as any native starter without mutating
+-- the engine's underlying rival party.
+game.save.modData.pokemon_randomizer.enabled = false
+game.save.modData.pokemon_randomizer.settings.starters = "off"
+optionValues.charmander_ball = "SHEDINJA"
+optionValues.squirtle_ball = "SQUIRTLE"
+optionValues.bulbasaur_ball = "BULBASAUR"
+optionValues.lock_confirmed_starter = false
+modSave.received_starter_slot = "LEFT"
+modSave.received_starter_species = "SHEDINJA"
+local shedinjaRival = callbacks.hooks["trainer.party"].fn(
+  function(_, _, party) return party end, "OPP_RIVAL1", 1, originalParty)
+assert(shedinjaRival[#shedinjaRival].species == "SQUIRTLE"
+  or shedinjaRival[#shedinjaRival].species == "BULBASAUR",
+  "Oak Lab rival battle must select one of the two remaining safe starters for Shedinja")
+assert(originalParty[#originalParty].species == "SQUIRTLE",
+  "Oak Lab Shedinja counter selection mutated native rival party data")
+game.save.modData.pokemon_randomizer.enabled = true
+game.save.modData.pokemon_randomizer.settings.starters = "random"
+
 -- With the toggle disabled, the post-gift listener has no pending player
 -- adjustment and must leave the engine-generated DVs intact.
 optionValues.max_starter_dvs = false

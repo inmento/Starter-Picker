@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.12 — Gold mobile option-label fix
+
+Gold’s fixed mod-options panel does not wrap individual labels, so the longer Starter Picker labels could run past the right edge on mobile. The visible labels are now compact, unambiguous terms such as `CYNDAQUIL`, `TRADE @42`, `DV MODE`, and `HELD ITEM`; all option keys, defaults, values, and behavior remain unchanged.
+
+The Gen 1 Oak Lab rival projection is also covered explicitly for a selected Shedinja. If neither remaining offered starter is super-effective against Bug/Ghost, the rival selects one of the two remaining safe candidates, as intended.
+
 ## 1.0.11 — Compact option labels and National Dex display
 
 Every starter-setting label now fits the fixed 17-column mod-settings viewport. The setting keys, defaults, randomizer synchronization, player-only DV behavior, trade-evolution option, and rival logic are unchanged.

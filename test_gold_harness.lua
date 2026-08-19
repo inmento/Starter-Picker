@@ -87,6 +87,15 @@ assert(callbacks.schema[1].key == "cyndaquil_ball", "Gold left-ball selector mis
 assert(callbacks.schema[4].key == "starter_trade_evolution_42", "shared trade fallback option missing")
 assert(callbacks.schema[9].key == "gold_player_dv_mode", "Gold player-DV mode missing")
 assert(callbacks.schema[10].key == "gold_held_item", "Gold held-item selector missing")
+local expectedLabels = {
+  "CYNDAQUIL", "TOTODILE", "CHIKORITA", "TRADE @42", "LOCK",
+  "STATUS", "RIVAL", "CORNER", "DV MODE", "HELD ITEM",
+}
+for index, label in ipairs(expectedLabels) do
+  assert(callbacks.schema[index].label == label,
+    "Gold mobile option label drifted at row " .. index)
+  assert(#label <= 10, "Gold mobile option label exceeds the safe 10-character width: " .. label)
+end
 
 local previewPicture, previewCry
 callbacks.hooks["script.command"](function(_, _, _, finalCmd)
