@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.11 — Compact option labels and National Dex display
+
+Every starter-setting label now fits the fixed 17-column mod-settings viewport. The setting keys, defaults, randomizer synchronization, player-only DV behavior, trade-evolution option, and rival logic are unchanged.
+
+When Gen 1 Shedinja 0.1.6 is enabled, its existing optional load-order relationship now also lets the selector display the provider’s official **#292 SHEDINJA** row. Shedinja remains optional and is not a dependency.
+
 ## 1.0.10 — Shedinja optional-provider order repair
 
 Gen 1 Shedinja’s package ID is now lowercase (`gen1_shedinja`). Starter Picker 1.0.9 still named its optional ordering relationship with the previous uppercase ID, so the loader could start Starter Picker before Shedinja and build the selector at the native #151 ceiling. This release updates that **optional** relationship to `gen1_shedinja`.

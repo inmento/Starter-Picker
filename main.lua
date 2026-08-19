@@ -182,11 +182,11 @@ return function(mod)
       type = "choice", default = SLOTS.RIGHT.default, choices = CHOICES,
     },
     {
-      key = TRADE_FALLBACK_OPTION, label = "STARTER TRADE EVO AT 42",
+      key = TRADE_FALLBACK_OPTION, label = "TRADE EVO AT 42",
       type = "toggle", default = false,
     },
     {
-      key = SELECTION_LOCK_OPTION, label = "LOCK CONFIRMED STARTER",
+      key = SELECTION_LOCK_OPTION, label = "LOCK STARTER",
       type = "toggle", default = false,
     },
     {
@@ -196,7 +196,7 @@ return function(mod)
       key = RIVAL_ACTION_OPTION, label = "RIVAL PREVIEW", type = "toggle", default = false,
     },
     {
-      key = GAME_CORNER_EXCLUSIVES_OPTION, label = "GAME CORNER EXCLUSIVES",
+      key = GAME_CORNER_EXCLUSIVES_OPTION, label = "CORNER EXCLUSIVES",
       type = "toggle", default = false,
     },
   }
@@ -215,7 +215,7 @@ return function(mod)
     }
   else
     optionDefs[#optionDefs + 1] = {
-      key = MAX_STARTER_DVS_OPTION, label = "MAX PLAYER STARTER DVS",
+      key = MAX_STARTER_DVS_OPTION, label = "MAX STARTER DVS",
       type = "toggle", default = false,
     }
   end
