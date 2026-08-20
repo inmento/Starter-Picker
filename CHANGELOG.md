@@ -1,5 +1,10 @@
 # Changelog
 
+
+## 1.0.13 — Corrected Shedinja provider identity
+
+Starter Picker’s optional Shedinja integration now names the corrected `shedinja` package ID. This preserves optional load ordering for Shedinja-aware starter choices after the core package migration; no gameplay setting, starter selection, rival logic, or randomizer behavior changed.
+
 ## 1.0.12 — Gold mobile option-label fix
 
 Gold’s fixed mod-options panel does not wrap individual labels, so the longer Starter Picker labels could run past the right edge on mobile. The visible labels are now compact, unambiguous terms such as `CYNDAQUIL`, `TRADE @42`, `DV MODE`, and `HELD ITEM`; all option keys, defaults, values, and behavior remain unchanged.

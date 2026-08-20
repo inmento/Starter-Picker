@@ -92,7 +92,7 @@ local mod = {
   game = game,
   find = function(_, id)
     if id == "pokemon_randomizer" then return { id = id, version = "1.0.0", exports = {} } end
-    if id == "gen1_shedinja" then return { id = id, exports = { dexSize=152 } } end
+    if id == "shedninja" then return { id = id, exports = { dexSize=152 } } end
     return nil
   end,
   content = {
@@ -267,10 +267,11 @@ optionValues.lock_confirmed_starter = false
 modSave.received_starter_slot = "LEFT"
 modSave.received_starter_species = "SHEDINJA"
 local shedinjaRival = callbacks.hooks["trainer.party"].fn(
-  function(_, _, party) return party end, "OPP_RIVAL1", 1, originalParty)
+  function(_, _, party) return party end, "OPP_RIVAL1", 3, originalParty)
 assert(shedinjaRival[#shedinjaRival].species == "SQUIRTLE"
   or shedinjaRival[#shedinjaRival].species == "BULBASAUR",
-  "Oak Lab rival battle must select one of the two remaining safe starters for Shedinja")
+  "Oak Lab rival battle must select one of the two remaining safe starters for Shedinja; got "
+    .. tostring(shedinjaRival[#shedinjaRival].species))
 assert(originalParty[#originalParty].species == "SQUIRTLE",
   "Oak Lab Shedinja counter selection mutated native rival party data")
 game.save.modData.pokemon_randomizer.enabled = true
