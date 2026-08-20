@@ -1,6 +1,12 @@
 # Changelog
 
 
+## 1.0.14 — Silver support
+
+Starter Picker now recognizes **Pokémon Silver** as Generation 2 and uses the same established Elm’s Lab selector, Gen 2 Randomizer integration, rival counter-pick, player-DV, and held-item behavior as Gold. Silver no longer incorrectly falls into the Gen 1 Oak’s Lab branch.
+
+This is a direct root-cause correction using Gen1Recomp’s shared `GameVersion.generation()` contract rather than a duplicate Silver implementation. The existing Gen 1 and Gold harnesses, plus a focused Silver Elm-routing harness, pass.
+
 ## 1.0.13 — Corrected Shedinja provider identity
 
 Starter Picker’s optional Shedinja integration now names the corrected `shedinja` package ID. This preserves optional load ordering for Shedinja-aware starter choices after the core package migration; no gameplay setting, starter selection, rival logic, or randomizer behavior changed.

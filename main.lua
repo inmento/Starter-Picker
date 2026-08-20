@@ -12,7 +12,7 @@ return function(mod)
   local GameVersion = require("src.core.GameVersion")
   local playing = GameVersion.get()
   local function isGen2(_)
-    return playing == "gold"
+    return GameVersion.generation(playing) == 2
   end
 
   -- Crystal 251 is an optional Gen 1 overhaul. Starter Picker only reads its

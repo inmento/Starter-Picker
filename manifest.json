@@ -1,7 +1,7 @@
 {
   "id": "starter_picker",
   "name": "Starter Picker",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "entry": "main.lua",
   "api": 2,
   "game_version": ">=0.1.99",
@@ -12,5 +12,5 @@
   "permissions": ["engine_internals"],
   "optional_dependencies": ["CRYSTAL_251", "shedinja"],
   "github": "inmento/Starter-Picker",
-  "description": "Choose player starters in Gen 1 and Gold, preserve rival counter-picks, browse selections in-game, use safe Gold held-item themes, and optionally add starter-only trade evolutions and Game Corner exclusives with Crystal 251-safe compatibility."
+  "description": "Choose player starters in Gen 1, Gold, and Silver; preserve rival counter-picks; browse selections in-game; use safe Gen 2 held-item themes; and optionally add starter-only trade evolutions and Game Corner exclusives with Crystal 251-safe compatibility."
 }
