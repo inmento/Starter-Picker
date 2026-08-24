@@ -1,6 +1,12 @@
 # Changelog
 
 
+## 1.1.0 — Native Crystal starter profile
+
+Starter Picker now supports **Pokémon Crystal** on Gen1Recomp `0.2.24` and later. Crystal keeps the native Elm’s Lab left/middle/right object positions, but its three starter scripts and prompt-text identifiers differ from Gold and Silver. The mod now selects a verified Crystal profile only when `GameVersion.engine()` reports `crystal`, routing preview, prompt replacement, gift rebuild, DVs, held items, save tracking, and rival counter-picks through the corresponding Crystal identifiers.
+
+Gold and Silver retain their shared profile, and all persisted option and save keys remain unchanged. New Gold, Silver, and Crystal harnesses cover the three respective starter routes; the Crystal harness verifies the Crystal script key, prompt path, preview, gift rebuild, player-only DVs/held item, Pokédex update, and rival route. This release includes no Crystal ROM data or assets. The separate **Crystal 251** optional dependency remains a Gen 1 expansion framework and is not a declaration of native Pokémon Crystal support.
+
 ## 1.0.14 — Silver support
 
 Starter Picker now recognizes **Pokémon Silver** as Generation 2 and uses the same established Elm’s Lab selector, Gen 2 Randomizer integration, rival counter-pick, player-DV, and held-item behavior as Gold. Silver no longer incorrectly falls into the Gen 1 Oak’s Lab branch.

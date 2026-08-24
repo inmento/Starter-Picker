@@ -51,7 +51,10 @@ return function(mod)
     },
   }
 
-  local GOLD_SLOTS = {
+  -- Gold and Silver share one Elm script layout. Crystal keeps the same three
+  -- native starters but changes the decoded script and text keys, so it needs
+  -- a distinct source profile while retaining the same option and save keys.
+  local GOLD_SILVER_SLOTS = {
     LEFT = {
       option = "cyndaquil_ball", default = "CYNDAQUIL", objectIndex = 3,
       scriptKey = "60:40c6", promptText = "60:45e3", promptLead = "ELM: You'll take",
@@ -69,7 +72,31 @@ return function(mod)
     },
   }
 
-  local SLOTS = isGen2() and GOLD_SLOTS or GEN1_SLOTS
+  local CRYSTAL_SLOTS = {
+    LEFT = {
+      option = "cyndaquil_ball", default = "CYNDAQUIL", objectIndex = 3,
+      scriptKey = "1e:4c73", promptText = "1e:53c8", promptLead = "ELM: You'll take",
+      nativeSpeciesIndex = 155, rivalSlot = "MIDDLE",
+    },
+    MIDDLE = {
+      option = "totodile_ball", default = "TOTODILE", objectIndex = 4,
+      scriptKey = "1e:4cb5", promptText = "1e:53f3", promptLead = "ELM: Do you want",
+      nativeSpeciesIndex = 158, rivalSlot = "RIGHT",
+    },
+    RIGHT = {
+      option = "chikorita_ball", default = "CHIKORITA", objectIndex = 5,
+      scriptKey = "1e:4cf1", promptText = "1e:541f", promptLead = "ELM: So, you like",
+      nativeSpeciesIndex = 152, rivalSlot = "LEFT",
+    },
+  }
+
+  local function activeGen2Slots()
+    local engine = type(GameVersion.engine) == "function" and GameVersion.engine(playing) or nil
+    return engine == "crystal" and CRYSTAL_SLOTS or GOLD_SILVER_SLOTS
+  end
+
+  local GEN2_SLOTS = isGen2() and activeGen2Slots() or nil
+  local SLOTS = isGen2() and GEN2_SLOTS or GEN1_SLOTS
 
   local PENDING_STARTER_SLOT_KEY = "pending_starter_slot"
   local STARTER_SLOT_KEY = "received_starter_slot"
@@ -720,7 +747,7 @@ return function(mod)
 
   local function goldSlotForScript(ctx)
     if not (ctx and ctx.generation == 2 and ctx.scriptKey) then return nil end
-    for slotName, slot in pairs(GOLD_SLOTS) do
+    for slotName, slot in pairs(GEN2_SLOTS or {}) do
       if ctx.scriptKey == slot.scriptKey then return slotName end
     end
     return nil
@@ -732,7 +759,7 @@ return function(mod)
   end
 
   local function updateGoldElmPrompt(game, slotName)
-    local slot = GOLD_SLOTS[slotName]
+    local slot = (GEN2_SLOTS or {})[slotName]
     if not (slot and slot.promptText) then return end
     local text = game and game.data and (game.data.gen2Text or game.data.text)
     if type(text) ~= "table" then return end
@@ -747,9 +774,9 @@ return function(mod)
   end
 
   local function rebuildGoldStarter(game, mon, slotName)
-    if not (isGen2(game) and type(mon) == "table" and GOLD_SLOTS[slotName]) then return false end
+    if not (isGen2(game) and type(mon) == "table" and (GEN2_SLOTS or {})[slotName]) then return false end
     local Mon = require("src.battle.gen2.Mon")
-    local slot = GOLD_SLOTS[slotName]
+    local slot = (GEN2_SLOTS or {})[slotName]
     local species = selectedSpecies(game, slot)
     local firstGift = not mod.save:get(GOLD_RECEIVED_KEY)
     local old = {
@@ -1336,7 +1363,7 @@ return function(mod)
       local slotName = goldSlotForScript(ctx)
       if not slotName then return next(ctx, name, args, cmd) end
 
-      local slot = GOLD_SLOTS[slotName]
+      local slot = (GEN2_SLOTS or {})[slotName]
       if name == "givepoke" and cmd then
         local transformedId = cmd.species
         local transformedSpecies = type(transformedId) == "number"
@@ -1399,7 +1426,7 @@ return function(mod)
       if not (event and event.completed ~= false and slotName and not mod.save:get(GOLD_RECEIVED_KEY)) then return end
       local party = game and game.save and game.save.party or {}
       local mon = party[#party]
-      local native = goldSpeciesIdByIndex(game, GOLD_SLOTS[slotName].nativeSpeciesIndex)
+      local native = goldSpeciesIdByIndex(game, (GEN2_SLOTS or {})[slotName].nativeSpeciesIndex)
       if mon and (#party == 1 or mon.species == native) then rebuildGoldStarter(game, mon, slotName) end
     end)
   end
@@ -1429,7 +1456,7 @@ return function(mod)
       local goldRival = trainerClass == 9 or trainerClass == 42
         or trainerClass == "RIVAL1" or trainerClass == "RIVAL2"
       local chosen = mod.save:get(STARTER_SLOT_KEY)
-      local slot = chosen and GOLD_SLOTS[chosen]
+      local slot = chosen and (GEN2_SLOTS or {})[chosen]
       if not (goldRival and slot and #party > 0) then return party end
       local game = mod.game or lastGame
       local rivalSpecies = rivalSpeciesFor(game, chosen)
