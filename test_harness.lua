@@ -8,6 +8,12 @@ end
 package.preload["src.render.TextBox"] = function()
   return { new = function(_, text) return { text=text } end }
 end
+package.preload["src.render.Font"] = function()
+  return { drawBox = function() end, draw = function() end, drawCode = function() end }
+end
+package.preload["src.ui.Theme"] = function()
+  return { cursor = ">" }
+end
 local optionValues = {
   charmander_ball = "MEWTWO",
   squirtle_ball = "MEW",
@@ -52,8 +58,12 @@ local game = {
     },
   },
   data = { pokemon = species },
-  stack = { push = function(_, box) game.lastText = box and box.text end },
+  stack = {},
 }
+game.stack.push = function(_, box)
+  game.lastText = box and box.text
+  game.lastPushed = box
+end
 local recordedRows
 local emittedGift
 local overworld = {
@@ -158,6 +168,16 @@ assert(callbacks.events["pokemon.before_give"].priority == -10000,
 assert(callbacks.events["mod.options_changed"], "live selector-change listener missing")
 assert(callbacks.hooks["trainer.party"].priority == -10000,
   "rival projection did not register after the Randomizer")
+
+local optionsRows = callbacks.hooks["ui.options.rows"](function(_, rows) return rows end, game, {})
+local leftPickerRow
+for _, row in ipairs(optionsRows) do
+  if row.id == "starter_picker_left" then leftPickerRow = row break end
+end
+assert(leftPickerRow and leftPickerRow.activate, "Gen 1 starter-picker options row missing")
+leftPickerRow.activate(game)
+assert(game.lastPushed and game.lastPushed.isModOptions == true,
+  "starter-picker selector screen must opt into Gen1BetterMenus options layout")
 
 callbacks.mapContributions.OAKS_LAB.talk.TEXT_OAKSLAB_CHARMANDER_POKE_BALL(
   game, overworld, {}, function() end)

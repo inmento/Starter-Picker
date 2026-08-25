@@ -1101,7 +1101,7 @@ return function(mod)
     local Font = require("src.render.Font")
     local Theme = require("src.ui.Theme")
     local index = GEN1_CHOICE_INDEX[selectedSpecies(game, slot)] or 1
-    local screen = { game = game, isOpaque = true, repeatDir = nil, repeatLeft = 0 }
+    local screen = { game = game, isModOptions = true, isOpaque = true, repeatDir = nil, repeatLeft = 0 }
 
     local function move(dir)
       index = ((index - 1 + dir) % #CHOICES) + 1

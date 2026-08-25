@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2 — Gen1BetterMenus options-screen compatibility
+
+The manually opened Gen 1 starter-selection browser now exposes the optional `isModOptions = true` marker required by the Gen1BetterMenus options-screen contract. This lets Better Menus use its appropriate options-style layout when installed, without requiring, detecting, or depending on Better Menus.
+
+No starter choices, rival logic, save data, option keys, gameplay behavior, or non-menu visuals changed. A focused regression now opens the screen through the actual Gen 1 options row and verifies that the marker is present.
 
 ## 1.1.0 — Native Crystal starter profile
 
